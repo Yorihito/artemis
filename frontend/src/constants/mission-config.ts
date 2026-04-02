@@ -11,14 +11,14 @@ export interface RefreshOption {
 }
 
 export const REFRESH_INTERVALS: RefreshOption[] = [
-  { label: "5秒", value: 5_000, approachOnly: true },
-  { label: "10秒", value: 10_000, approachOnly: true },
-  { label: "30秒", value: 30_000, approachOnly: false },
-  { label: "1分", value: 60_000, approachOnly: false },
-  { label: "5分", value: 300_000, approachOnly: false },
-  { label: "10分", value: 600_000, approachOnly: false },
-  { label: "30分", value: 1_800_000, approachOnly: false },
-  { label: "手動", value: 0, approachOnly: false },
+  { label: "5s",     value: 5_000,     approachOnly: true },
+  { label: "10s",    value: 10_000,    approachOnly: true },
+  { label: "30s",    value: 30_000,    approachOnly: false },
+  { label: "1m",     value: 60_000,    approachOnly: false },
+  { label: "5m",     value: 300_000,   approachOnly: false },
+  { label: "10m",    value: 600_000,   approachOnly: false },
+  { label: "30m",    value: 1_800_000, approachOnly: false },
+  { label: "Manual", value: 0,         approachOnly: false },
 ];
 
 export const DEFAULT_REFRESH_INTERVAL_MS = 1_800_000; // 30 min (cruise)

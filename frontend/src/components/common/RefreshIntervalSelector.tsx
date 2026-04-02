@@ -20,7 +20,7 @@ export function RefreshIntervalSelector({
 
   return (
     <div className="flex items-center gap-2 flex-wrap text-xs">
-      <span className="text-slate-400 shrink-0">更新間隔:</span>
+      <span className="text-slate-400 shrink-0">Refresh:</span>
       <div className="flex gap-1 flex-wrap">
         {visible.map((opt) => (
           <button
@@ -41,7 +41,7 @@ export function RefreshIntervalSelector({
           onClick={onManualRefresh}
           className="px-3 py-1 rounded bg-slate-700 border border-slate-600 text-slate-200 hover:bg-slate-600 transition"
         >
-          ↻ 更新
+          ↻ Refresh
         </button>
       )}
     </div>

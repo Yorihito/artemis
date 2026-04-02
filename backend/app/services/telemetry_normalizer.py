@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timezone
+from typing import Optional
 from dateutil.parser import parse as parse_dt
 
 from app.models.mission import MissionCurrentResponse, MissionPhase, Vector3D, PHASE_LABELS
@@ -51,9 +52,10 @@ def normalize(
     timestamp: datetime,
     position: Vector3D,
     velocity: Vector3D,
+    moon_position: Optional[Vector3D] = None,
 ) -> MissionCurrentResponse:
     distance_from_earth_km = _magnitude(position)
-    moon_pos = _get_moon_position_approx(timestamp)
+    moon_pos = moon_position if moon_position is not None else _get_moon_position_approx(timestamp)
     distance_from_moon_km = _distance(position, moon_pos)
     velocity_kms = _magnitude(velocity)
     met = _get_mission_elapsed_seconds(timestamp)
@@ -83,4 +85,5 @@ def normalize(
         last_success_at=timestamp,
         is_approaching=is_approaching,
         approach_type=approach_type,
+        moon_position=moon_pos,
     )

@@ -1,6 +1,6 @@
 "use client";
 import type { MissionEvent } from "@/types/mission";
-import { formatJST } from "@/lib/time-utils";
+import { formatUTC } from "@/lib/time-utils";
 
 interface Props {
   events: MissionEvent[];
@@ -52,10 +52,13 @@ export function TimelinePanel({ events }: Props) {
                   {event.name}
                 </div>
                 <div className="text-xs text-slate-600 mt-0.5">
-                  {event.actual_time
-                    ? `Actual: ${formatJST(event.actual_time)}`
-                    : `Planned: ${formatJST(event.planned_time)}`}
+                  Planned: {formatUTC(event.planned_time)}
                 </div>
+                {event.actual_time && (
+                  <div className="text-xs text-green-600 mt-0.5">
+                    Actual: {formatUTC(event.actual_time)}
+                  </div>
+                )}
               </div>
             </div>
           );

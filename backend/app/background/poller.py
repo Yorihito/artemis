@@ -39,11 +39,18 @@ async def _fetch_and_update() -> bool:
             velocity = raw.velocity
             source = "Horizons"
 
+        moon_position = None
+        if not settings.USE_MOCK:
+            moon_position = await horizons_client.fetch_moon_position(now)
+            if moon_position:
+                logger.info(f"Moon position: x={moon_position.x:.0f} y={moon_position.y:.0f} z={moon_position.z:.0f} km")
+
         normalized = telemetry_normalizer.normalize(
             source=source,
             timestamp=now,
             position=position,
             velocity=velocity,
+            moon_position=moon_position,
         )
         await cache_service.update(normalized)
 

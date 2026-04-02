@@ -32,6 +32,7 @@ export interface MissionCurrentResponse {
   last_success_at: string | null;
   is_approaching: boolean;
   approach_type: "moon" | "earth" | null;
+  moon_position?: Vector3D;  // Real Moon position from Horizons
 }
 
 export interface TrajectoryPoint {

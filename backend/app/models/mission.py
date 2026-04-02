@@ -54,6 +54,7 @@ class MissionCurrentResponse(BaseModel):
     last_success_at: Optional[datetime]
     is_approaching: bool = False
     approach_type: Optional[str] = None  # "moon" | "earth" | None
+    moon_position: Optional[Vector3D] = None  # Real Moon position from Horizons
 
 
 class TrajectoryPoint(BaseModel):

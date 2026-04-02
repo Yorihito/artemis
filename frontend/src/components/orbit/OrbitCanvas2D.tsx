@@ -14,10 +14,10 @@ interface Props {
 }
 
 const TRAJECTORY_OPTIONS: { label: string; value: TrajectoryRange }[] = [
-  { label: "OFF",   value: "off" },
-  { label: "10分",  value: "10m" },
-  { label: "1時間", value: "1h" },
-  { label: "全軌跡", value: "mission" },
+  { label: "OFF",  value: "off" },
+  { label: "10m",  value: "10m" },
+  { label: "1h",   value: "1h" },
+  { label: "Full", value: "mission" },
 ];
 
 const EARTH_MOON_KM = 384_400;
@@ -39,7 +39,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     // ── defs ────────────────────────────────────────────────────────────
     const defs = svg.append("defs");
 
-    // Arrowhead marker
+    // Arrowhead marker (Orion callout)
     defs.append("marker")
       .attr("id", "arrowhead")
       .attr("markerWidth", 7).attr("markerHeight", 7)
@@ -48,6 +48,16 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .append("polygon")
       .attr("points", "0 0, 7 3.5, 0 7")
       .attr("fill", "#f97316");
+
+    // Moon velocity arrowhead marker
+    defs.append("marker")
+      .attr("id", "moonArrow")
+      .attr("markerWidth", 6).attr("markerHeight", 6)
+      .attr("refX", 5).attr("refY", 3)
+      .attr("orient", "auto")
+      .append("polygon")
+      .attr("points", "0 0, 6 3, 0 6")
+      .attr("fill", "#94a3b8");
 
     // Radial gradient for Earth
     const earthGrad = defs.append("radialGradient").attr("id", "earthGrad");
@@ -130,15 +140,6 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
         .text(`${km / 1000}k km`);
     });
 
-    // ── Moon orbit ring ──────────────────────────────────────────────────
-    g.append("circle")
-      .attr("cx", cx).attr("cy", cy)
-      .attr("r", EARTH_MOON_KM * scale)
-      .attr("fill", "none")
-      .attr("stroke", "#334155")
-      .attr("stroke-width", 0.8)
-      .attr("stroke-dasharray", "6 8");
-
     // ── trajectory ───────────────────────────────────────────────────────
     if (trajectory.length > 1) {
       // Draw segments with fading opacity (older = dimmer)
@@ -182,9 +183,10 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .text("EARTH");
 
     // ── Moon ─────────────────────────────────────────────────────────────
-    const moonKm = current
-      ? moonPositionAt(new Date(current.timestamp))
-      : moonPositionAt(new Date());
+    // Use real Horizons position if available, otherwise fall back to approximation
+    const moonKm = (current?.moon_position)
+      ? current.moon_position
+      : (current ? moonPositionAt(new Date(current.timestamp)) : moonPositionAt(new Date()));
     const [msx, msy] = toSVG(moonKm.x, moonKm.y);
     const MOON_R = 8;
 
@@ -209,6 +211,28 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .attr("font-family", "monospace")
       .attr("letter-spacing", 1)
       .text("MOON");
+
+    // ── Moon velocity direction arrow ─────────────────────────────────────
+    // Moon orbits CCW in EME2000 (viewed from +Z = Earth north pole).
+    // Tangential direction: perpendicular to position vector, CCW = (-y, x) / |r|
+    {
+      const moonR2D = Math.sqrt(moonKm.x * moonKm.x + moonKm.y * moonKm.y);
+      if (moonR2D > 0) {
+        const tx = -moonKm.y / moonR2D;   // world-space tangential x
+        const ty =  moonKm.x / moonR2D;   // world-space tangential y
+        const ARROW_PX = 26;
+        // SVG y-axis is inverted: ty in world → -ty in SVG
+        const aex = msx + tx * ARROW_PX;
+        const aey = msy - ty * ARROW_PX;
+        g.append("line")
+          .attr("x1", msx).attr("y1", msy)
+          .attr("x2", aex).attr("y2", aey)
+          .attr("stroke", "#64748b")
+          .attr("stroke-width", 1.2)
+          .attr("stroke-opacity", 0.9)
+          .attr("marker-end", "url(#moonArrow)");
+      }
+    }
 
     // ── Spacecraft ───────────────────────────────────────────────────────
     if (current) {

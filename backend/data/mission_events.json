@@ -4,74 +4,82 @@
     {
       "event_id": "launch",
       "name": "Launch",
-      "planned_time": "2026-04-02T01:50:00Z",
-      "actual_time": null,
-      "status": "upcoming",
+      "planned_time": "2026-04-01T22:35:12Z",
+      "actual_time": "2026-04-01T22:35:12Z",
+      "status": "completed",
       "description": "SLS launches from Kennedy Space Center LC-39B"
     },
     {
       "event_id": "max_q",
       "name": "Max-Q",
-      "planned_time": "2026-04-02T18:51:30Z",
+      "planned_time": "2026-04-01T22:36:27Z",
       "actual_time": null,
-      "status": "upcoming",
-      "description": "Maximum aerodynamic pressure"
+      "status": "completed",
+      "description": "Maximum aerodynamic pressure on the vehicle (~T+1:15)"
+    },
+    {
+      "event_id": "srb_sep",
+      "name": "SRB Separation",
+      "planned_time": "2026-04-01T22:37:20Z",
+      "actual_time": null,
+      "status": "completed",
+      "description": "Solid Rocket Boosters separate from core stage (T+2:08)"
     },
     {
       "event_id": "core_stage_sep",
       "name": "Core Stage Separation",
-      "planned_time": "2026-04-02T18:58:00Z",
+      "planned_time": "2026-04-01T22:43:18Z",
       "actual_time": null,
-      "status": "upcoming",
-      "description": "SLS core stage separates"
-    },
-    {
-      "event_id": "icps_sep",
-      "name": "ICPS Separation / Earth Orbit Insertion",
-      "planned_time": "2026-04-02T19:10:00Z",
-      "actual_time": null,
-      "status": "upcoming",
-      "description": "Orion reaches Earth parking orbit"
+      "status": "completed",
+      "description": "SLS core stage main engine cutoff and separation (T+8:06)"
     },
     {
       "event_id": "tli",
       "name": "Translunar Injection",
-      "planned_time": "2026-04-02T21:30:00Z",
+      "planned_time": "2026-04-02T00:12:12Z",
+      "actual_time": null,
+      "status": "completed",
+      "description": "ICPS burn sends Orion onto a translunar trajectory (~T+1:37)"
+    },
+    {
+      "event_id": "icps_sep",
+      "name": "ICPS Separation",
+      "planned_time": "2026-04-02T01:59:27Z",
+      "actual_time": null,
+      "status": "completed",
+      "description": "Interim Cryogenic Propulsion Stage separates from Orion (T+3:24)"
+    },
+    {
+      "event_id": "lunar_soi",
+      "name": "Lunar Sphere of Influence",
+      "planned_time": "2026-04-06T05:34:12Z",
       "actual_time": null,
       "status": "upcoming",
-      "description": "ICPS burn sends Orion toward the Moon"
+      "description": "Orion enters the Moon's gravitational sphere of influence (~T+4d 6:59)"
     },
     {
       "event_id": "lunar_flyby",
       "name": "Lunar Flyby",
-      "planned_time": "2026-04-05T06:00:00Z",
+      "planned_time": "2026-04-06T23:58:12Z",
       "actual_time": null,
       "status": "upcoming",
-      "description": "Closest approach to the Moon (~8,889 km)"
-    },
-    {
-      "event_id": "return_coast",
-      "name": "Return Coast Begins",
-      "planned_time": "2026-04-05T10:00:00Z",
-      "actual_time": null,
-      "status": "upcoming",
-      "description": "Orion begins the return journey to Earth"
+      "description": "Closest approach to the Moon, ~4,100–4,600 miles beyond the far side (~T+5d 1:23)"
     },
     {
       "event_id": "reentry",
-      "name": "Re-entry",
-      "planned_time": "2026-04-12T18:00:00Z",
+      "name": "Entry Interface",
+      "planned_time": "2026-04-11T00:08:12Z",
       "actual_time": null,
       "status": "upcoming",
-      "description": "Orion re-enters Earth atmosphere at ~11 km/s"
+      "description": "Orion enters Earth's atmosphere at ~400,000 ft altitude (~T+9d 1:33)"
     },
     {
       "event_id": "splashdown",
       "name": "Splashdown",
-      "planned_time": "2026-04-12T18:30:00Z",
+      "planned_time": "2026-04-11T00:21:12Z",
       "actual_time": null,
       "status": "upcoming",
-      "description": "Orion splashes down in the Pacific Ocean"
+      "description": "Orion splashes down in the Pacific Ocean (~T+9d 1:46)"
     }
   ]
 }

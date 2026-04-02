@@ -100,6 +100,38 @@ def _parse_horizons_vectors(text: str) -> Optional[HorizonsRawData]:
     return None
 
 
+async def fetch_moon_position(timestamp: Optional[datetime] = None) -> Optional[Vector3D]:
+    """Fetch the Moon's current position from JPL Horizons (NAIF ID 301)."""
+    if timestamp is None:
+        timestamp = datetime.now(timezone.utc)
+    start = timestamp.strftime("%Y-%b-%d %H:%M")
+    stop = (timestamp + timedelta(hours=1)).strftime("%Y-%b-%d %H:%M")
+
+    params = {
+        "format": "json",
+        "COMMAND": "'301'",
+        "EPHEM_TYPE": "VECTORS",
+        "CENTER": "'500@399'",
+        "START_TIME": f"'{start}'",
+        "STOP_TIME": f"'{stop}'",
+        "STEP_SIZE": "'1m'",
+        "OUT_UNITS": "'KM-S'",
+        "VEC_TABLE": "2",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=settings.HORIZONS_TIMEOUT_SECONDS) as client:
+            response = await client.get(settings.HORIZONS_BASE_URL, params=params)
+            response.raise_for_status()
+            body = response.json()
+            raw_text = body.get("result", "")
+            result = _parse_horizons_vectors(raw_text)
+            if result:
+                return result.position
+    except Exception as e:
+        logger.warning(f"Moon position fetch failed: {e}")
+    return None
+
+
 async def fetch_current_state() -> Optional[HorizonsRawData]:
     """Fetch the current state vector from JPL Horizons with retry."""
     now = datetime.now(timezone.utc)

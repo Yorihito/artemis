@@ -7,13 +7,13 @@ interface Props {
 }
 
 const OPTIONS = [
-  { label: "30秒", value: 30_000 },
-  { label: "10秒", value: 10_000 },
-  { label: "5秒", value: 5_000 },
+  { label: "30s", value: 30_000 },
+  { label: "10s", value: 10_000 },
+  { label: "5s",  value: 5_000 },
 ];
 
 export function ApproachAlert({ approachType, onSelectInterval, onDismiss }: Props) {
-  const target = approachType === "moon" ? "月" : "地球";
+  const target = approachType === "moon" ? "Moon" : "Earth";
   const emoji = approachType === "moon" ? "🌙" : "🌍";
 
   return (
@@ -21,10 +21,10 @@ export function ApproachAlert({ approachType, onSelectInterval, onDismiss }: Pro
       <span className="text-2xl">{emoji}</span>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-orange-300">
-          {target}に接近中！
+          Approaching {target}!
         </div>
         <div className="text-sm text-orange-400">
-          ポーリング間隔を短縮することを推奨します
+          Consider increasing the polling frequency
         </div>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
@@ -44,7 +44,7 @@ export function ApproachAlert({ approachType, onSelectInterval, onDismiss }: Pro
           onClick={onDismiss}
           className="text-xs text-orange-500 hover:text-orange-300 px-2"
         >
-          後で
+          Later
         </button>
       </div>
     </div>
