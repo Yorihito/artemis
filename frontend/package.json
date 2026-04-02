@@ -1,0 +1,33 @@
+{
+  "name": "artemis-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.3.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "swr": "2.3.3",
+    "d3": "7.9.0",
+    "date-fns": "4.1.0",
+    "date-fns-tz": "3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.x",
+    "@types/react": "19.x",
+    "@types/react-dom": "19.x",
+    "@types/d3": "7.4.3",
+    "typescript": "5.x",
+    "tailwindcss": "3.4.17",
+    "@tailwindcss/typography": "0.5.16",
+    "autoprefixer": "10.4.21",
+    "postcss": "8.5.3",
+    "eslint": "9.x",
+    "eslint-config-next": "15.3.0"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "mission": "Artemis II",
+  "events": [
+    {
+      "event_id": "launch",
+      "name": "Launch",
+      "planned_time": "2026-04-02T01:50:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "SLS launches from Kennedy Space Center LC-39B"
+    },
+    {
+      "event_id": "max_q",
+      "name": "Max-Q",
+      "planned_time": "2026-04-02T18:51:30Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "Maximum aerodynamic pressure"
+    },
+    {
+      "event_id": "core_stage_sep",
+      "name": "Core Stage Separation",
+      "planned_time": "2026-04-02T18:58:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "SLS core stage separates"
+    },
+    {
+      "event_id": "icps_sep",
+      "name": "ICPS Separation / Earth Orbit Insertion",
+      "planned_time": "2026-04-02T19:10:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "Orion reaches Earth parking orbit"
+    },
+    {
+      "event_id": "tli",
+      "name": "Translunar Injection",
+      "planned_time": "2026-04-02T21:30:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "ICPS burn sends Orion toward the Moon"
+    },
+    {
+      "event_id": "lunar_flyby",
+      "name": "Lunar Flyby",
+      "planned_time": "2026-04-05T06:00:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "Closest approach to the Moon (~8,889 km)"
+    },
+    {
+      "event_id": "return_coast",
+      "name": "Return Coast Begins",
+      "planned_time": "2026-04-05T10:00:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "Orion begins the return journey to Earth"
+    },
+    {
+      "event_id": "reentry",
+      "name": "Re-entry",
+      "planned_time": "2026-04-12T18:00:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "Orion re-enters Earth atmosphere at ~11 km/s"
+    },
+    {
+      "event_id": "splashdown",
+      "name": "Splashdown",
+      "planned_time": "2026-04-12T18:30:00Z",
+      "actual_time": null,
+      "status": "upcoming",
+      "description": "Orion splashes down in the Pacific Ocean"
+    }
+  ]
+}

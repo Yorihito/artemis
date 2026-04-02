@@ -1,0 +1,32 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: ["./src/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        space: {
+          950: "#030712",
+          900: "#0a0e1a",
+          800: "#111827",
+        },
+      },
+      fontFamily: {
+        mono: ["JetBrains Mono", "Consolas", "monospace"],
+      },
+      animation: {
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        blink: "blink 1s step-end infinite",
+      },
+      keyframes: {
+        blink: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
+        },
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

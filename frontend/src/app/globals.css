@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #030712;
+  --card: #0f172a;
+  --border: #1e293b;
+  --accent: #06b6d4;
+  --warn: #f97316;
+}
+
+body {
+  background-color: var(--bg);
+  color: #e2e8f0;
+  font-family: system-ui, sans-serif;
+}
+
+.telemetry-value {
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-variant-numeric: tabular-nums;
+}
