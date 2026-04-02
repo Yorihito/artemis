@@ -1,7 +1,9 @@
 "use client";
+import { useState, useEffect } from "react";
 import type { MissionCurrentResponse } from "@/types/mission";
 import { TelemetryCard } from "./TelemetryCard";
 import { formatMET, formatDistance } from "@/lib/time-utils";
+import { LAUNCH_EPOCH } from "@/constants/mission-config";
 
 interface Props {
   data: MissionCurrentResponse | undefined;
@@ -9,7 +11,22 @@ interface Props {
 
 const PH = "———";
 
+function useLiveMET(): string {
+  const [met, setMet] = useState(() =>
+    formatMET((Date.now() - LAUNCH_EPOCH.getTime()) / 1000)
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMet(formatMET((Date.now() - LAUNCH_EPOCH.getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return met;
+}
+
 export function TelemetryGrid({ data }: Props) {
+  const liveMET = useLiveMET();
+
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/20 p-3 space-y-2">
       <div className="text-[9px] font-mono text-slate-600 uppercase tracking-[0.2em] mb-1">
@@ -18,7 +35,7 @@ export function TelemetryGrid({ data }: Props) {
       <div className="grid grid-cols-2 gap-2">
         <TelemetryCard
           label="Mission Elapsed"
-          value={data ? formatMET(data.mission_elapsed_seconds) : PH}
+          value={liveMET}
         />
         <TelemetryCard
           label="Velocity"

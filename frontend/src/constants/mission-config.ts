@@ -1,5 +1,5 @@
 export const MISSION_NAME = "Artemis II";
-export const LAUNCH_EPOCH = new Date("2026-04-02T18:50:00Z");
+export const LAUNCH_EPOCH = new Date("2026-04-01T22:35:12Z");
 export const EARTH_RADIUS_KM = 6371;
 export const MOON_RADIUS_KM = 1737;
 export const EARTH_MOON_DISTANCE_KM = 384_400;
