@@ -61,9 +61,17 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
   const svgRef        = useRef<SVGSVGElement>(null);
   const containerRef  = useRef<HTMLDivElement>(null);
   const prevModeRef   = useRef<string>("normal");
-  const [showSats, setShowSats] = useState<Record<SatId, boolean>>({
-    himawari: false, goesE: false, goesW: false,
+  const [showSats, setShowSats] = useState<Record<SatId, boolean>>(() => {
+    if (typeof window === "undefined") return { himawari: false, goesE: false, goesW: false };
+    try {
+      const s = localStorage.getItem("artemis_sats");
+      return s ? JSON.parse(s) : { himawari: false, goesE: false, goesW: false };
+    } catch { return { himawari: false, goesE: false, goesW: false }; }
   });
+
+  useEffect(() => {
+    localStorage.setItem("artemis_sats", JSON.stringify(showSats));
+  }, [showSats]);
 
   const draw = useCallback(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -435,18 +443,17 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Approach mode indicator — top-right */}
-        {approaching && (
-          <div className="absolute top-3 right-3
-                          bg-orange-950/90 backdrop-blur-sm px-2.5 py-1.5
-                          rounded-lg border border-orange-800">
-            <span className="text-[10px] text-orange-400 font-mono tracking-widest">
-              {approaching === "moon" ? "⚠ MOON APPROACH" : "⚠ EARTH APPROACH"}
-            </span>
-          </div>
-        )}
+          {/* Approach mode indicator — below SAT row */}
+          {approaching && (
+            <div className="bg-orange-950/90 backdrop-blur-sm px-2.5 py-1.5
+                            rounded-lg border border-orange-800">
+              <span className="text-[10px] text-orange-400 font-mono tracking-widest">
+                {approaching === "moon" ? "⚠ MOON APPROACH" : "⚠ EARTH APPROACH"}
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* Zoom hint */}
         <div className="absolute bottom-2 right-3 text-[10px] text-slate-700 font-mono pointer-events-none">

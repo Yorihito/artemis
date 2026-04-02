@@ -32,12 +32,22 @@ const OrbitCanvas2D = dynamic(
 export default function DashboardPage() {
   const [refreshInterval, setRefreshInterval] = useState(DEFAULT_REFRESH_INTERVAL_MS);
   const [showApproachAlert, setShowApproachAlert] = useState(false);
-  const [trajectoryRange, setTrajectoryRange] = useState<"off" | "1h" | "2h" | "8h" | "mission">("mission");
+  const [trajectoryRange, setTrajectoryRange] = useState<"off" | "1h" | "2h" | "8h" | "mission">(() => {
+    if (typeof window === "undefined") return "mission";
+    const s = localStorage.getItem("artemis_traj_range");
+    return (["off","1h","2h","8h","mission"] as string[]).includes(s ?? "")
+      ? s as "off" | "1h" | "2h" | "8h" | "mission"
+      : "mission";
+  });
   const prevApproachingRef = useRef<boolean>(false);
 
   const { data, isError, refresh } = useMissionCurrent(refreshInterval);
   const { data: trajectoryData } = useTrajectory(trajectoryRange === "off" ? "mission" : trajectoryRange as "1h" | "2h" | "8h" | "mission");
   const { data: eventsData } = useMissionEvents();
+
+  useEffect(() => {
+    localStorage.setItem("artemis_traj_range", trajectoryRange);
+  }, [trajectoryRange]);
 
   useEffect(() => {
     if (!data) return;
