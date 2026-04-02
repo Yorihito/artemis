@@ -33,7 +33,6 @@
 | コンテナレジストリ | Azure Container Registry (Basic) | 最小構成 |
 | 永続化 | Azure Table Storage | 最安値のNoSQL、訪問者・軌跡データ保存 |
 
-**サブスクリプション:** Musukoyo (yorihitotada@hotmail.com)
 **リソースグループ:** `artemis-rg` (japaneast)
 
 ---
@@ -186,8 +185,8 @@ frontend/src/
 - [x] Mock モード（`USE_MOCK=true` でオフライン動作可）
 
 ### 本番 URL
-- **フロントエンド:** https://happy-beach-012009f00.1.azurestaticapps.net
-- **バックエンド API:** https://artemis-api.calmocean-51582704.japaneast.azurecontainerapps.io
+- **フロントエンド:** Azure Static Web Apps（`az staticwebapp show` で確認）
+- **バックエンド API:** Azure Container Apps（`az containerapp show --query properties.configuration.ingress.fqdn` で確認）
 
 ---
 
@@ -226,7 +225,7 @@ az containerapp revision restart --name artemis-api --resource-group artemis-rg 
 ### フロントエンド
 ```bash
 cd frontend
-NEXT_PUBLIC_API_BASE_URL=https://artemis-api.calmocean-51582704.japaneast.azurecontainerapps.io \
+NEXT_PUBLIC_API_BASE_URL=<バックエンドURL> \
   npm run build
 STATIC_TOKEN=$(az staticwebapp secrets list --name artemis2-frontend \
   --resource-group artemis-rg --query "properties.apiKey" -o tsv)
