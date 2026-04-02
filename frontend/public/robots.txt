@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://happy-beach-012009f00.1.azurestaticapps.net/sitemap.xml
