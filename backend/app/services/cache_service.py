@@ -37,7 +37,9 @@ class CacheService:
                 y=data.position.y,
                 z=data.position.z,
             )
-            self.trajectory_points.append(point)
+            # Skip duplicate timestamps
+            if not self.trajectory_points or self.trajectory_points[-1].timestamp != point.timestamp:
+                self.trajectory_points.append(point)
 
             self.source_status[data.source] = SourceInfo(
                 name=data.source,

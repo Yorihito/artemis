@@ -47,10 +47,12 @@ async def _fetch_and_update() -> bool:
         )
         await cache_service.update(normalized)
 
-        # Persist new point to Table Storage
+        # Persist new point to Table Storage (skip if same timestamp as latest stored)
         if not settings.USE_MOCK:
-            pt = TrajectoryPoint(timestamp=now, x=position.x, y=position.y, z=position.z)
-            trajectory_store.save(pt)
+            latest = trajectory_store.latest_timestamp()
+            if latest is None or now > latest:
+                pt = TrajectoryPoint(timestamp=now, x=position.x, y=position.y, z=position.z)
+                trajectory_store.save(pt)
 
         logger.info(
             f"[{source}] Updated: "
