@@ -5,6 +5,7 @@ import type { MissionCurrentResponse, TrajectoryPoint } from "@/types/mission";
 import { moonPositionAt } from "@/lib/coordinate-utils";
 
 type TrajectoryRange = "off" | "10m" | "1h" | "mission";
+type ApproachMode = "moon" | "earth" | null;
 
 interface Props {
   current: MissionCurrentResponse | undefined;
@@ -29,9 +30,26 @@ const SAT_DEFS = [
 type SatId = typeof SAT_DEFS[number]["id"];
 
 const EARTH_MOON_KM = 384_400;
-const GEO_R_KM = 42_164; // geostationary orbit radius
+const GEO_R_KM      = 42_164;
+const EARTH_R_KM    = 6_371;
+const MOON_R_KM     = 1_737;
 
-/** Greenwich Apparent Sidereal Time in degrees (approximate) */
+// View extents for each mode (km from center to edge)
+const VIEW_RADIUS: Record<NonNullable<ApproachMode> | "normal", number> = {
+  moon:   120_000,
+  earth:   60_000,
+  normal: EARTH_MOON_KM,
+};
+
+const APPROACH_GRID: Record<NonNullable<ApproachMode>, number[]> = {
+  moon:  [10_000, 30_000, 50_000, 100_000],
+  earth: [ 5_000, 10_000, 20_000,  50_000],
+};
+
+function fmtKm(km: number): string {
+  return km >= 1_000 ? `${km / 1_000}k km` : `${km} km`;
+}
+
 function getGAST(date: Date): number {
   const J2000_MS = new Date("2000-01-01T12:00:00Z").getTime();
   const T = (date.getTime() - J2000_MS) / (1000 * 86400 * 36525);
@@ -39,44 +57,68 @@ function getGAST(date: Date): number {
 }
 
 export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajectoryRangeChange }: Props) {
-  const svgRef       = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef        = useRef<SVGSVGElement>(null);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const prevModeRef   = useRef<string>("normal");
   const [showSats, setShowSats] = useState<Record<SatId, boolean>>({
-    himawari: false,
-    goesE:    false,
-    goesW:    false,
+    himawari: false, goesE: false, goesW: false,
   });
 
   const draw = useCallback(() => {
     if (!svgRef.current || !containerRef.current) return;
-    const container = containerRef.current;
-    const size = container.clientWidth || 500;
+    const size = containerRef.current.clientWidth || 500;
     const w = size, h = size;
 
     const svg = d3.select(svgRef.current);
     svg.attr("width", w).attr("height", h);
     svg.selectAll("*").remove();
 
+    // ── Moon position (needed early for approach-mode centering) ─────────
+    const moonKm = current?.moon_position
+      ?? (current ? moonPositionAt(new Date(current.timestamp)) : moonPositionAt(new Date()));
+
+    // ── Approach mode & view parameters ─────────────────────────────────
+    const approaching: ApproachMode =
+      current?.is_approaching && current.approach_type
+        ? (current.approach_type as ApproachMode)
+        : null;
+
+    const viewRadius = VIEW_RADIUS[approaching ?? "normal"];
+    const viewMargin = approaching ? 20 : 40;
+    const scale      = (Math.min(w, h) / 2 - viewMargin) / viewRadius;
+
+    // View center in world coords (Earth or Moon position)
+    const vcx = approaching === "moon" ? moonKm.x : 0;
+    const vcy = approaching === "moon" ? moonKm.y : 0;
+
+    const ccx = w / 2, ccy = h / 2;  // canvas center (SVG pixels)
+
+    function toSVG(x: number, y: number): [number, number] {
+      return [ccx + (x - vcx) * scale, ccy - (y - vcy) * scale];
+    }
+
+    // Body radii: to-scale in approach mode, symbolic otherwise
+    const earthR = approaching ? Math.max(EARTH_R_KM * scale, 3) : 14;
+    const moonR  = approaching ? Math.max(MOON_R_KM  * scale, 2) : 8;
+
+    // Marker sizes
+    const orionDotR     = approaching ? 3   : 4;
+    const orionPulseMax = approaching ? 8   : 18;
+    const satS          = approaching ? 2   : 3.5;
+    const calloutLen    = approaching ? 32  : 56;
+
     // ── defs ────────────────────────────────────────────────────────────
     const defs = svg.append("defs");
 
-    defs.append("marker")
-      .attr("id", "arrowhead")
+    defs.append("marker").attr("id", "arrowhead")
       .attr("markerWidth", 7).attr("markerHeight", 7)
-      .attr("refX", 6).attr("refY", 3.5)
-      .attr("orient", "auto")
-      .append("polygon")
-      .attr("points", "0 0, 7 3.5, 0 7")
-      .attr("fill", "#f97316");
+      .attr("refX", 6).attr("refY", 3.5).attr("orient", "auto")
+      .append("polygon").attr("points", "0 0, 7 3.5, 0 7").attr("fill", "#f97316");
 
-    defs.append("marker")
-      .attr("id", "moonArrow")
+    defs.append("marker").attr("id", "moonArrow")
       .attr("markerWidth", 6).attr("markerHeight", 6)
-      .attr("refX", 5).attr("refY", 3)
-      .attr("orient", "auto")
-      .append("polygon")
-      .attr("points", "0 0, 6 3, 0 6")
-      .attr("fill", "#94a3b8");
+      .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
+      .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", "#94a3b8");
 
     const earthGrad = defs.append("radialGradient").attr("id", "earthGrad");
     earthGrad.append("stop").attr("offset", "0%").attr("stop-color", "#60a5fa");
@@ -88,20 +130,11 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
 
     defs.append("style").text(`
       @keyframes orion-pulse {
-        0%   { r: 5;  opacity: 0.8; }
-        100% { r: 18; opacity: 0;   }
+        0%   { r: ${orionDotR + 1};  opacity: 0.8; }
+        100% { r: ${orionPulseMax};  opacity: 0;   }
       }
       .orion-pulse { animation: orion-pulse 2s ease-out infinite; }
     `);
-
-    // ── coordinate helpers ───────────────────────────────────────────────
-    const cx = w / 2, cy = h / 2;
-    const margin = 40;
-    const scale = (Math.min(w, h) / 2 - margin) / EARTH_MOON_KM;
-
-    function toSVG(x: number, y: number): [number, number] {
-      return [cx + x * scale, cy - y * scale];
-    }
 
     // ── background: stars ────────────────────────────────────────────────
     const rng = d3.randomLcg(42);
@@ -110,11 +143,10 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       svg.append("circle")
         .attr("cx", rand() * w).attr("cy", rand() * h)
         .attr("r",  rand() * 1.4 + 0.2)
-        .attr("fill", "white")
-        .attr("opacity", rand() * 0.55 + 0.15);
+        .attr("fill", "white").attr("opacity", rand() * 0.55 + 0.15);
     }
 
-    // ── zoomable group ───────────────────────────────────────────────────
+    // ── zoomable group + zoom ────────────────────────────────────────────
     const g = svg.append("g").attr("class", "zoomable");
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
@@ -124,31 +156,49 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     svg.on("dblclick.zoom", () =>
       svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity));
 
-    // ── radar grid ──────────────────────────────────────────────────────
-    const gridDistances = [100_000, 200_000, 300_000, EARTH_MOON_KM];
-    gridDistances.forEach((km) => {
-      g.append("circle")
-        .attr("cx", cx).attr("cy", cy)
-        .attr("r", km * scale)
-        .attr("fill", "none")
-        .attr("stroke", km === EARTH_MOON_KM ? "#1e3a5f" : "#1e293b")
-        .attr("stroke-width", km === EARTH_MOON_KM ? 0.8 : 0.5)
-        .attr("stroke-dasharray", "3 8");
-    });
-    [0, 45, 90, 135].forEach((deg) => {
-      const r = (deg * Math.PI) / 180;
-      const len = EARTH_MOON_KM * scale * 1.05;
-      g.append("line")
-        .attr("x1", cx - Math.cos(r) * len).attr("y1", cy - Math.sin(r) * len)
-        .attr("x2", cx + Math.cos(r) * len).attr("y2", cy + Math.sin(r) * len)
-        .attr("stroke", "#1e293b").attr("stroke-width", 0.4);
-    });
-    [100_000, 200_000, 300_000].forEach((km) => {
-      g.append("text")
-        .attr("x", cx + km * scale + 4).attr("y", cy - 3)
-        .attr("fill", "#334155").attr("font-size", 8).attr("font-family", "monospace")
-        .text(`${km / 1000}k km`);
-    });
+    // Reset zoom when approach mode changes
+    const modeKey = approaching ?? "normal";
+    if (prevModeRef.current !== modeKey) {
+      svg.call(zoom.transform, d3.zoomIdentity);
+      prevModeRef.current = modeKey;
+    }
+
+    // ── grid ─────────────────────────────────────────────────────────────
+    if (approaching) {
+      APPROACH_GRID[approaching].forEach((km) => {
+        g.append("circle")
+          .attr("cx", ccx).attr("cy", ccy).attr("r", km * scale)
+          .attr("fill", "none").attr("stroke", "#1e293b")
+          .attr("stroke-width", 0.5).attr("stroke-dasharray", "3 8");
+        g.append("text")
+          .attr("x", ccx + km * scale + 3).attr("y", ccy - 3)
+          .attr("fill", "#334155").attr("font-size", 8).attr("font-family", "monospace")
+          .text(fmtKm(km));
+      });
+    } else {
+      [100_000, 200_000, 300_000, EARTH_MOON_KM].forEach((km) => {
+        g.append("circle")
+          .attr("cx", ccx).attr("cy", ccy).attr("r", km * scale)
+          .attr("fill", "none")
+          .attr("stroke", km === EARTH_MOON_KM ? "#1e3a5f" : "#1e293b")
+          .attr("stroke-width", km === EARTH_MOON_KM ? 0.8 : 0.5)
+          .attr("stroke-dasharray", "3 8");
+      });
+      [0, 45, 90, 135].forEach((deg) => {
+        const r = (deg * Math.PI) / 180;
+        const len = EARTH_MOON_KM * scale * 1.05;
+        g.append("line")
+          .attr("x1", ccx - Math.cos(r) * len).attr("y1", ccy - Math.sin(r) * len)
+          .attr("x2", ccx + Math.cos(r) * len).attr("y2", ccy + Math.sin(r) * len)
+          .attr("stroke", "#1e293b").attr("stroke-width", 0.4);
+      });
+      [100_000, 200_000, 300_000].forEach((km) => {
+        g.append("text")
+          .attr("x", ccx + km * scale + 4).attr("y", ccy - 3)
+          .attr("fill", "#334155").attr("font-size", 8).attr("font-family", "monospace")
+          .text(`${km / 1000}k km`);
+      });
+    }
 
     // ── trajectory ───────────────────────────────────────────────────────
     if (trajectory.length > 1) {
@@ -165,16 +215,19 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     }
 
     // ── Earth ────────────────────────────────────────────────────────────
-    const EARTH_R = 14;
+    const [esx, esy] = toSVG(0, 0);
+    if (!approaching) {
+      g.append("circle")
+        .attr("cx", esx).attr("cy", esy).attr("r", earthR + 6)
+        .attr("fill", "none").attr("stroke", "#1d4ed8")
+        .attr("stroke-width", 0.6).attr("stroke-opacity", 0.3);
+    }
     g.append("circle")
-      .attr("cx", cx).attr("cy", cy).attr("r", EARTH_R + 6)
-      .attr("fill", "none").attr("stroke", "#1d4ed8")
-      .attr("stroke-width", 0.6).attr("stroke-opacity", 0.3);
-    g.append("circle")
-      .attr("cx", cx).attr("cy", cy).attr("r", EARTH_R)
-      .attr("fill", "url(#earthGrad)").attr("stroke", "#60a5fa").attr("stroke-width", 1);
+      .attr("cx", esx).attr("cy", esy).attr("r", earthR)
+      .attr("fill", "url(#earthGrad)").attr("stroke", "#60a5fa")
+      .attr("stroke-width", approaching ? 0.8 : 1);
     g.append("text")
-      .attr("x", cx).attr("y", cy + EARTH_R + 13)
+      .attr("x", esx).attr("y", esy + earthR + (approaching ? 8 : 13))
       .attr("text-anchor", "middle").attr("fill", "#60a5fa")
       .attr("font-size", 10).attr("font-family", "monospace").attr("letter-spacing", 1)
       .text("EARTH");
@@ -186,7 +239,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       if (!showSats[sat.id]) return;
       const angle = ((sat.longDeg + gast) * Math.PI) / 180;
       const [ssx, ssy] = toSVG(GEO_R_KM * Math.cos(angle), GEO_R_KM * Math.sin(angle));
-      const S = 3.5;
+      const S = satS;
       g.append("polygon")
         .attr("points", `${ssx},${ssy - S} ${ssx + S},${ssy} ${ssx},${ssy + S} ${ssx - S},${ssy}`)
         .attr("fill", sat.color).attr("opacity", 0.9);
@@ -197,27 +250,25 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     });
 
     // ── Moon ─────────────────────────────────────────────────────────────
-    const moonKm = current?.moon_position
-      ? current.moon_position
-      : (current ? moonPositionAt(new Date(current.timestamp)) : moonPositionAt(new Date()));
     const [msx, msy] = toSVG(moonKm.x, moonKm.y);
-    const MOON_R = 8;
-
+    if (!approaching) {
+      g.append("circle")
+        .attr("cx", msx).attr("cy", msy).attr("r", moonR + 4)
+        .attr("fill", "none").attr("stroke", "#94a3b8")
+        .attr("stroke-width", 0.5).attr("stroke-opacity", 0.3);
+    }
     g.append("circle")
-      .attr("cx", msx).attr("cy", msy).attr("r", MOON_R + 4)
-      .attr("fill", "none").attr("stroke", "#94a3b8")
-      .attr("stroke-width", 0.5).attr("stroke-opacity", 0.3);
-    g.append("circle")
-      .attr("cx", msx).attr("cy", msy).attr("r", MOON_R)
-      .attr("fill", "url(#moonGrad)").attr("stroke", "#94a3b8").attr("stroke-width", 0.8);
+      .attr("cx", msx).attr("cy", msy).attr("r", moonR)
+      .attr("fill", "url(#moonGrad)").attr("stroke", "#94a3b8")
+      .attr("stroke-width", approaching ? 0.8 : 0.8);
     g.append("text")
-      .attr("x", msx).attr("y", msy + MOON_R + 12)
+      .attr("x", msx).attr("y", msy + moonR + (approaching ? 8 : 12))
       .attr("text-anchor", "middle").attr("fill", "#94a3b8")
       .attr("font-size", 10).attr("font-family", "monospace").attr("letter-spacing", 1)
       .text("MOON");
 
     // ── Moon velocity direction arrow ─────────────────────────────────────
-    {
+    if (!approaching) {
       const moonR2D = Math.sqrt(moonKm.x * moonKm.x + moonKm.y * moonKm.y);
       if (moonR2D > 0) {
         const tx = -moonKm.y / moonR2D;
@@ -234,22 +285,24 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     // ── Spacecraft ───────────────────────────────────────────────────────
     if (current) {
       const [sx, sy] = toSVG(current.position.x, current.position.y);
-      const dx = sx - cx, dy = sy - cy;
+      const dx = sx - ccx, dy = sy - ccy;
+
+      // In approach mode, callout points away from the APPROACH TARGET (canvas center)
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       const ux = dx / dist, uy = dy / dist;
-      const CALLOUT = 56;
-      const lx = sx + ux * CALLOUT, ly = sy + uy * CALLOUT;
+      const lx = sx + ux * calloutLen;
+      const ly = sy + uy * calloutLen;
 
       g.append("line")
         .attr("x1", lx).attr("y1", ly)
-        .attr("x2", sx + ux * 6).attr("y2", sy + uy * 6)
+        .attr("x2", sx + ux * (orionDotR + 2)).attr("y2", sy + uy * (orionDotR + 2))
         .attr("stroke", "#f97316").attr("stroke-width", 1.5)
         .attr("marker-end", "url(#arrowhead)");
       g.append("circle").attr("class", "orion-pulse")
-        .attr("cx", sx).attr("cy", sy).attr("r", 5)
+        .attr("cx", sx).attr("cy", sy).attr("r", orionDotR + 1)
         .attr("fill", "none").attr("stroke", "#f97316").attr("stroke-width", 1.5);
       g.append("circle")
-        .attr("cx", sx).attr("cy", sy).attr("r", 4)
+        .attr("cx", sx).attr("cy", sy).attr("r", orionDotR)
         .attr("fill", "#fff").attr("stroke", "#f97316").attr("stroke-width", 1.5);
 
       const LW = 52, LH = 15;
@@ -266,30 +319,41 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
         .text("ORION");
     } else {
       g.append("text")
-        .attr("x", cx).attr("y", cy - 50)
+        .attr("x", ccx).attr("y", ccy - 50)
         .attr("text-anchor", "middle").attr("fill", "#334155")
         .attr("font-size", 11).attr("font-family", "monospace")
         .text("AWAITING POSITION DATA");
     }
 
-    // ── scale bar ────────────────────────────────────────────────────────
-    const BAR_KM = 50_000;
-    const BAR_PX = BAR_KM * scale;
+    // ── Approach mode badge ───────────────────────────────────────────────
+    if (approaching) {
+      const label = approaching === "moon" ? "CLOSE APPROACH · MOON" : "CLOSE APPROACH · EARTH";
+      svg.append("text")
+        .attr("x", w / 2).attr("y", h - 26)
+        .attr("text-anchor", "middle").attr("fill", "#f97316")
+        .attr("font-size", 9).attr("font-family", "monospace")
+        .attr("letter-spacing", 2).attr("opacity", 0.7)
+        .text(label);
+    }
+
+    // ── Scale bar ─────────────────────────────────────────────────────────
+    const barKm = approaching === "moon" ? 30_000 : approaching === "earth" ? 20_000 : 50_000;
+    const barPx = barKm * scale;
     const bx = 14, by = h - 14;
     svg.append("line")
-      .attr("x1", bx).attr("y1", by).attr("x2", bx + BAR_PX).attr("y2", by)
+      .attr("x1", bx).attr("y1", by).attr("x2", bx + barPx).attr("y2", by)
       .attr("stroke", "#475569").attr("stroke-width", 1.5);
     svg.append("line")
       .attr("x1", bx).attr("y1", by - 4).attr("x2", bx).attr("y2", by + 4)
       .attr("stroke", "#475569").attr("stroke-width", 1.5);
     svg.append("line")
-      .attr("x1", bx + BAR_PX).attr("y1", by - 4).attr("x2", bx + BAR_PX).attr("y2", by + 4)
+      .attr("x1", bx + barPx).attr("y1", by - 4).attr("x2", bx + barPx).attr("y2", by + 4)
       .attr("stroke", "#475569").attr("stroke-width", 1.5);
     svg.append("text")
-      .attr("x", bx + BAR_PX / 2).attr("y", by - 6)
+      .attr("x", bx + barPx / 2).attr("y", by - 6)
       .attr("text-anchor", "middle").attr("fill", "#475569")
       .attr("font-size", 9).attr("font-family", "monospace")
-      .text("50,000 km");
+      .text(fmtKm(barKm));
 
   }, [current, trajectory, showSats]);
 
@@ -302,6 +366,11 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     ro.observe(container);
     return () => ro.disconnect();
   }, [draw]);
+
+  const approaching: ApproachMode =
+    current?.is_approaching && current.approach_type
+      ? (current.approach_type as ApproachMode)
+      : null;
 
   return (
     <div className="relative flex flex-col">
@@ -366,6 +435,17 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
             ))}
           </div>
         </div>
+
+        {/* Approach mode indicator — top-right */}
+        {approaching && (
+          <div className="absolute top-3 right-3
+                          bg-orange-950/90 backdrop-blur-sm px-2.5 py-1.5
+                          rounded-lg border border-orange-800">
+            <span className="text-[10px] text-orange-400 font-mono tracking-widest">
+              {approaching === "moon" ? "⚠ MOON APPROACH" : "⚠ EARTH APPROACH"}
+            </span>
+          </div>
+        )}
 
         {/* Zoom hint */}
         <div className="absolute bottom-2 right-3 text-[10px] text-slate-700 font-mono pointer-events-none">
