@@ -103,22 +103,18 @@ def _parse_horizons_vectors(text: str) -> Optional[HorizonsRawData]:
 async def fetch_current_state() -> Optional[HorizonsRawData]:
     """Fetch the current state vector from JPL Horizons with retry."""
     now = datetime.now(timezone.utc)
-    start = now.strftime("%Y-%b-%d %H:%M:%S")
-    stop = (now + timedelta(minutes=2)).strftime("%Y-%b-%d %H:%M:%S")
+    start = now.strftime("%Y-%b-%d %H:%M")
+    stop = (now + timedelta(hours=1)).strftime("%Y-%b-%d %H:%M")
 
     params = {
-        "format": "text",
+        "format": "json",
         "COMMAND": f"'{settings.HORIZONS_TARGET_ID}'",
-        "OBJ_DATA": "NO",
-        "MAKE_EPHEM": "YES",
-        "TABLE_TYPE": "VECTORS",
-        "CENTER": "500@399",
+        "EPHEM_TYPE": "VECTORS",
+        "CENTER": "'500@399'",
         "START_TIME": f"'{start}'",
         "STOP_TIME": f"'{stop}'",
         "STEP_SIZE": "'1m'",
-        "OUT_UNITS": "KM-S",
-        "REF_FRAME": "ICRF",
-        "CSV_FORMAT": "NO",
+        "OUT_UNITS": "'KM-S'",
         "VEC_TABLE": "2",
     }
 
@@ -127,10 +123,12 @@ async def fetch_current_state() -> Optional[HorizonsRawData]:
             async with httpx.AsyncClient(timeout=settings.HORIZONS_TIMEOUT_SECONDS) as client:
                 response = await client.get(settings.HORIZONS_BASE_URL, params=params)
                 response.raise_for_status()
-                result = _parse_horizons_vectors(response.text)
+                body = response.json()
+                raw_text = body.get("result", "")
+                result = _parse_horizons_vectors(raw_text)
                 if result:
                     return result
-                logger.warning(f"Horizons: parse returned None on attempt {attempt+1}")
+                logger.warning(f"Horizons: parse returned None on attempt {attempt+1}. Snippet: {raw_text[:200]}")
         except Exception as e:
             wait = 2 ** attempt
             logger.warning(f"Horizons attempt {attempt+1} failed: {e}. Retrying in {wait}s")

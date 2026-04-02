@@ -60,42 +60,77 @@ async def _fetch_and_update() -> bool:
 
 async def _prepopulate_history():
     """
-    On startup, fill the trajectory cache with historical mock data points
-    from launch until now at 5-minute intervals. This makes the trajectory
-    visible immediately without waiting for real polling cycles.
-    Only runs in mock mode.
+    On startup, fill the trajectory cache with historical data points
+    from launch until now at 30-minute intervals.
+    Mock mode: uses simulated data.
+    Real mode: queries Horizons for each point (rate-limited).
     """
-    if not settings.USE_MOCK:
-        return
     from datetime import timedelta
     from dateutil.parser import parse as parse_dt
     from app.services.mock_data import generate_mock_state
-    from app.services import telemetry_normalizer
     from app.models.mission import TrajectoryPoint
+    import httpx
 
     launch = parse_dt(settings.MISSION_LAUNCH_EPOCH)
     now = datetime.now(timezone.utc)
     if now <= launch:
-        return  # Pre-launch, nothing to populate
+        logger.info("Pre-launch, skipping history pre-population")
+        return
 
-    step = timedelta(minutes=5)
-    t = launch
-    points_added = 0
-    while t <= now:
-        _, position, velocity = generate_mock_state(at=t)
-        normalized = telemetry_normalizer.normalize(
-            source="Mock",
-            timestamp=t,
-            position=position,
-            velocity=velocity,
-        )
-        # Directly append trajectory point without updating current_data
-        pt = TrajectoryPoint(timestamp=t, x=position.x, y=position.y, z=position.z)
-        cache_service.trajectory_points.append(pt)
-        t += step
-        points_added += 1
-
-    logger.info(f"Pre-populated {points_added} historical trajectory points from launch to now")
+    if settings.USE_MOCK:
+        # Mock: generate points every 5 minutes
+        step = timedelta(minutes=5)
+        t = launch
+        points_added = 0
+        while t <= now:
+            _, position, velocity = generate_mock_state(at=t)
+            pt = TrajectoryPoint(timestamp=t, x=position.x, y=position.y, z=position.z)
+            cache_service.trajectory_points.append(pt)
+            t += step
+            points_added += 1
+        logger.info(f"Pre-populated {points_added} mock trajectory points")
+    else:
+        # Real: fetch bulk history from Horizons at 30-min resolution
+        start_str = launch.strftime("%Y-%b-%d %H:%M")
+        stop_str = now.strftime("%Y-%b-%d %H:%M")
+        params = {
+            "format": "json",
+            "COMMAND": f"'{settings.HORIZONS_TARGET_ID}'",
+            "EPHEM_TYPE": "VECTORS",
+            "CENTER": "'500@399'",
+            "START_TIME": f"'{start_str}'",
+            "STOP_TIME": f"'{stop_str}'",
+            "STEP_SIZE": "'30m'",
+            "OUT_UNITS": "'KM-S'",
+            "VEC_TABLE": "2",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(settings.HORIZONS_BASE_URL, params=params)
+                resp.raise_for_status()
+                raw = resp.json().get("result", "")
+                from app.services.horizons_client import _parse_horizons_vectors
+                # Parse all points from the block
+                import re
+                soe = raw.find("$$SOE")
+                eoe = raw.find("$$EOE")
+                if soe > 0 and eoe > 0:
+                    block = raw[soe+5:eoe]
+                    date_re = re.compile(r"(\d{4}-\w{3}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)")
+                    xyz_re  = re.compile(r"X\s*=\s*([\-\d.E+]+)\s+Y\s*=\s*([\-\d.E+]+)\s+Z\s*=\s*([\-\d.E+]+)")
+                    dates = date_re.findall(block)
+                    xyzs  = xyz_re.findall(block)
+                    added = 0
+                    for date_str, (x, y, z) in zip(dates, xyzs):
+                        ts = datetime.strptime(date_str.strip(), "%Y-%b-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+                        pt = TrajectoryPoint(timestamp=ts, x=float(x), y=float(y), z=float(z))
+                        cache_service.trajectory_points.append(pt)
+                        added += 1
+                    logger.info(f"Pre-populated {added} real Horizons trajectory points")
+                else:
+                    logger.warning("Horizons history: no $$SOE/$$EOE in response")
+        except Exception as e:
+            logger.warning(f"Horizons history pre-population failed: {e}")
 
 
 async def polling_loop():
