@@ -30,6 +30,8 @@ class Settings(BaseSettings):
 
     # Mission definition
     MISSION_LAUNCH_EPOCH: str = "2026-04-01T22:35:12Z"
+    # Horizons ephemeris data starts ~2h after launch
+    HORIZONS_EPHEMERIS_START: str = "2026-04-02T02:00:00Z"
 
     # Cache
     TRAJECTORY_MAX_POINTS: int = 2880  # 24h at 30-second resolution

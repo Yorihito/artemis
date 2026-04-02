@@ -91,7 +91,9 @@ async def _prepopulate_history():
         logger.info(f"Pre-populated {points_added} mock trajectory points")
     else:
         # Real: fetch bulk history from Horizons at 30-min resolution
-        start_str = launch.strftime("%Y-%b-%d %H:%M")
+        # Horizons ephemeris starts ~2h after physical launch; use configured epoch
+        ephemeris_start = parse_dt(settings.HORIZONS_EPHEMERIS_START)
+        start_str = ephemeris_start.strftime("%Y-%b-%d %H:%M")
         stop_str = now.strftime("%Y-%b-%d %H:%M")
         params = {
             "format": "json",
