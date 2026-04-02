@@ -8,6 +8,7 @@ import { ErrorBanner } from "@/components/common/ErrorBanner";
 import { ApproachAlert } from "@/components/common/ApproachAlert";
 import { RefreshIntervalSelector } from "@/components/common/RefreshIntervalSelector";
 import { EventLogPanel, type LogEntry } from "@/components/common/EventLogPanel";
+import { VisitorCounter } from "@/components/common/VisitorCounter";
 import { useMissionCurrent } from "@/hooks/useMissionCurrent";
 import { useTrajectory } from "@/hooks/useTrajectory";
 import { useMissionEvents } from "@/hooks/useMissionEvents";
@@ -143,8 +144,11 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <footer className="text-center text-[10px] text-slate-800 py-2 border-t border-slate-900 font-mono">
-        DATA: JPL HORIZONS / NASA AROW · NOT OFFICIAL NASA DATA
+      <footer className="border-t border-slate-900 font-mono">
+        <VisitorCounter />
+        <p className="text-center text-[10px] text-slate-800 pb-2">
+          DATA: JPL HORIZONS / NASA AROW · NOT OFFICIAL NASA DATA
+        </p>
       </footer>
     </div>
   );

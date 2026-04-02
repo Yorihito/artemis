@@ -1,9 +1,35 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 from app.services.cache_service import cache_service
+from app.services.visitor_service import visitor_service
 from app.models.system import SystemStatusResponse
 from app.config import settings
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+class VisitRequest(BaseModel):
+    session_id: str
+
+
+class VisitorStatsResponse(BaseModel):
+    unique_visitors: int
+    total_visits: int
+    since: str
+
+
+@router.post("/visit", status_code=204)
+async def record_visit(body: VisitRequest):
+    visitor_service.record(body.session_id)
+
+
+@router.get("/visitors", response_model=VisitorStatsResponse)
+async def get_visitors():
+    return VisitorStatsResponse(
+        unique_visitors=visitor_service.unique_visitors,
+        total_visits=visitor_service.total_visits,
+        since=visitor_service.since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    )
 
 
 @router.get("/status", response_model=SystemStatusResponse)
