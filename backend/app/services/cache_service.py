@@ -67,10 +67,12 @@ class CacheService:
         now = datetime.now(timezone.utc)
         points = list(self.trajectory_points)
 
-        if range_str == "10m":
-            cutoff = now - timedelta(minutes=10)
-        elif range_str == "1h":
+        if range_str == "1h":
             cutoff = now - timedelta(hours=1)
+        elif range_str == "2h":
+            cutoff = now - timedelta(hours=2)
+        elif range_str == "8h":
+            cutoff = now - timedelta(hours=8)
         elif range_str == "mission":
             return points
         else:

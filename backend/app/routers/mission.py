@@ -22,7 +22,7 @@ async def get_current():
 
 @router.get("/trajectory", response_model=TrajectoryResponse)
 async def get_trajectory(
-    range: str = Query(default="1h", regex="^(10m|1h|mission)$"),
+    range: str = Query(default="1h", regex="^(1h|2h|8h|mission)$"),
     source: Optional[str] = Query(default=None),
 ):
     current = cache_service.get_current()

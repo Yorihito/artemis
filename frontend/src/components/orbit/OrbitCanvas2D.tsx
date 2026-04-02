@@ -4,7 +4,7 @@ import * as d3 from "d3";
 import type { MissionCurrentResponse, TrajectoryPoint } from "@/types/mission";
 import { moonPositionAt } from "@/lib/coordinate-utils";
 
-type TrajectoryRange = "off" | "10m" | "1h" | "mission";
+type TrajectoryRange = "off" | "1h" | "2h" | "8h" | "mission";
 type ApproachMode = "moon" | "earth" | null;
 
 interface Props {
@@ -16,8 +16,9 @@ interface Props {
 
 const TRAJECTORY_OPTIONS: { label: string; value: TrajectoryRange }[] = [
   { label: "OFF",  value: "off" },
-  { label: "10m",  value: "10m" },
   { label: "1h",   value: "1h" },
+  { label: "2h",   value: "2h" },
+  { label: "8h",   value: "8h" },
   { label: "Full", value: "mission" },
 ];
 

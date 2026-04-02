@@ -3,7 +3,7 @@ import useSWR from "swr";
 import { apiFetch } from "@/lib/api-client";
 import type { TrajectoryResponse } from "@/types/mission";
 
-export function useTrajectory(range: "10m" | "1h" | "mission" = "mission") {
+export function useTrajectory(range: "1h" | "2h" | "8h" | "mission" = "mission") {
   const { data, error, isLoading } = useSWR<TrajectoryResponse>(
     `/api/mission/trajectory?range=${range}`,
     (path: string) => apiFetch<TrajectoryResponse>(path),

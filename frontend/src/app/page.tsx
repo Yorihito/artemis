@@ -32,11 +32,11 @@ const OrbitCanvas2D = dynamic(
 export default function DashboardPage() {
   const [refreshInterval, setRefreshInterval] = useState(DEFAULT_REFRESH_INTERVAL_MS);
   const [showApproachAlert, setShowApproachAlert] = useState(false);
-  const [trajectoryRange, setTrajectoryRange] = useState<"off" | "10m" | "1h" | "mission">("mission");
+  const [trajectoryRange, setTrajectoryRange] = useState<"off" | "1h" | "2h" | "8h" | "mission">("mission");
   const prevApproachingRef = useRef<boolean>(false);
 
   const { data, isError, refresh } = useMissionCurrent(refreshInterval);
-  const { data: trajectoryData } = useTrajectory(trajectoryRange === "off" ? "mission" : trajectoryRange);
+  const { data: trajectoryData } = useTrajectory(trajectoryRange === "off" ? "mission" : trajectoryRange as "1h" | "2h" | "8h" | "mission");
   const { data: eventsData } = useMissionEvents();
 
   useEffect(() => {
