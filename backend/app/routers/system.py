@@ -25,9 +25,10 @@ async def record_visit(body: VisitRequest):
 
 @router.get("/visitors", response_model=VisitorStatsResponse)
 async def get_visitors():
+    stats = visitor_service.get_stats()
     return VisitorStatsResponse(
-        unique_visitors=visitor_service.unique_visitors,
-        total_visits=visitor_service.total_visits,
+        unique_visitors=stats["unique_visitors"],
+        total_visits=stats["total_visits"],
         since=visitor_service.since.strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
 
