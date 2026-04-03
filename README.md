@@ -2,8 +2,7 @@
 
 > Real-time tracking of NASA's Artemis II Orion spacecraft — powered by JPL Horizons ephemeris data.
 
-**Live:** https://happy-beach-012009f00.1.azurestaticapps.net
-
+**Live:** https://artemis.nyoyapoya.cc/
 ---
 
 ## What is this?
