@@ -16,6 +16,7 @@ from app.config import settings
 from app.models.mission import Vector3D
 
 logger = logging.getLogger(__name__)
+MAX_HORIZONS_RESULT_CHARS = 1_000_000
 
 
 class HorizonsRawData:
@@ -124,6 +125,9 @@ async def fetch_moon_position(timestamp: Optional[datetime] = None) -> Optional[
             response.raise_for_status()
             body = response.json()
             raw_text = body.get("result", "")
+            if len(raw_text) > MAX_HORIZONS_RESULT_CHARS:
+                logger.warning("Horizons moon response too large (%s chars)", len(raw_text))
+                return None
             result = _parse_horizons_vectors(raw_text)
             if result:
                 return result.position
@@ -157,6 +161,9 @@ async def fetch_current_state() -> Optional[HorizonsRawData]:
                 response.raise_for_status()
                 body = response.json()
                 raw_text = body.get("result", "")
+                if len(raw_text) > MAX_HORIZONS_RESULT_CHARS:
+                    logger.warning("Horizons response too large (%s chars)", len(raw_text))
+                    return None
                 result = _parse_horizons_vectors(raw_text)
                 if result:
                     return result
