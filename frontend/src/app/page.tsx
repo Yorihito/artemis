@@ -8,9 +8,11 @@ import { ErrorBanner } from "@/components/common/ErrorBanner";
 import { ApproachAlert } from "@/components/common/ApproachAlert";
 import { RefreshIntervalSelector } from "@/components/common/RefreshIntervalSelector";
 import { VisitorCounter } from "@/components/common/VisitorCounter";
+import { DSNPanel } from "@/components/dsn/DSNPanel";
 import { useMissionCurrent } from "@/hooks/useMissionCurrent";
 import { useTrajectory } from "@/hooks/useTrajectory";
 import { useMissionEvents } from "@/hooks/useMissionEvents";
+import { useDSN } from "@/hooks/useDSN";
 import {
   DEFAULT_REFRESH_INTERVAL_MS,
 } from "@/constants/mission-config";
@@ -44,6 +46,7 @@ export default function DashboardPage() {
   const { data, isError, refresh } = useMissionCurrent(refreshInterval);
   const { data: trajectoryData } = useTrajectory(trajectoryRange === "off" ? "mission" : trajectoryRange as "1h" | "2h" | "8h" | "mission");
   const { data: eventsData } = useMissionEvents();
+  const { data: dsnData, isLoading: dsnLoading } = useDSN();
 
   useEffect(() => {
     localStorage.setItem("artemis_traj_range", trajectoryRange);
@@ -96,6 +99,7 @@ export default function DashboardPage() {
 
         <div className="flex flex-col gap-3">
           <TelemetryGrid data={data} />
+          <DSNPanel data={dsnData} isLoading={dsnLoading} />
           {eventsData && <TimelinePanel events={eventsData.events} />}
           <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
             <RefreshIntervalSelector

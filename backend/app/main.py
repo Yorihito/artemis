@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import mission, system
+from app.routers import mission, system, dsn
 from app.background.poller import polling_loop
 
 logging.basicConfig(
@@ -49,6 +49,7 @@ app.add_middleware(
 
 app.include_router(mission.router)
 app.include_router(system.router)
+app.include_router(dsn.router)
 
 
 @app.get("/health")
