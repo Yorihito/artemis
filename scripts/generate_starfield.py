@@ -141,14 +141,17 @@ def generate(stars, size=2048, out="frontend/public/starfield.png",
         dot_r = max(0.4, 3.2 - mag * 0.32)
 
         if dot_r >= 1.2:
-            glow_steps = int(dot_r * 3)
-            for s in range(glow_steps, 0, -1):
-                frac   = s / glow_steps
-                radius = int(dot_r * (1 + frac * 1.8))
-                alpha  = int(200 * frac ** 2.5)
+            # Draw glow from outer (dim) to inner (bright) — natural PSF shape
+            glow_r = int(dot_r * 2.8)
+            steps  = max(6, glow_r * 2)
+            for s in range(steps, 0, -1):
+                frac   = s / steps          # 1 = outermost, ~0 = innermost
+                radius = max(1, int(glow_r * frac))
+                alpha  = int(240 * (1 - frac) ** 0.7)
                 box = [px - radius, py - radius, px + radius, py + radius]
                 draw.ellipse(box, fill=(*rgb, alpha))
-            cr = max(1, int(dot_r * 0.6))
+            # Bright solid core
+            cr = max(1, int(dot_r * 0.5))
             draw.ellipse([px - cr, py - cr, px + cr, py + cr], fill=(*rgb, 255))
         elif dot_r >= 0.7:
             draw.ellipse([px, py, px + 1, py + 1], fill=(*rgb, 255))
