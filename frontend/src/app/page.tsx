@@ -23,7 +23,7 @@ const OrbitCanvas2D = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="w-full aspect-square max-w-[calc(100svh-6rem)] mx-auto rounded-xl border border-slate-800 bg-[#050d1a]
+      <div className="w-full aspect-square max-w-[calc(100svh-6rem)] mx-auto xl:mr-0 rounded-xl border border-slate-800 bg-[#050d1a]
                       flex items-center justify-center text-slate-600 text-sm font-mono tracking-widest">
         INITIALIZING...
       </div>
