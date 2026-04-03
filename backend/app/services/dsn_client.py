@@ -54,50 +54,61 @@ def _parse_dsn_xml(text: str) -> DSNStatus:
     dishes: list[DSNDish] = []
     complex_dish_counts: dict[str, int] = {k: 0 for k in COMPLEX_META}
 
-    for station in root.findall("station"):
-        cid = station.get("name", "")
+    # <dish> elements are siblings of <station>, not children.
+    # Iterate root children sequentially; track the current station.
+    current_cid = ""
+    for child in root:
+        if child.tag == "station":
+            current_cid = child.get("name", "")
+            continue
+        if child.tag != "dish" or not current_cid:
+            continue
+
+        dish_el = child
+        # Only process dishes pointed at EM2
+        target_el = next(
+            (t for t in dish_el.findall("target") if t.get("name") == SPACECRAFT_NAME),
+            None,
+        )
+        if target_el is None:
+            continue
+
+        cid = current_cid
         meta = COMPLEX_META.get(cid, {"name": cid, "location": "", "flag": ""})
+        complex_dish_counts[cid] = complex_dish_counts.get(cid, 0) + 1
 
-        for dish_el in station.findall("dish"):
-            # Only process dishes that are pointed at EM2
-            target_el = next(
-                (t for t in dish_el.findall("target") if t.get("name") == SPACECRAFT_NAME),
-                None,
-            )
-            if target_el is None:
-                continue
+        # Pick the best downSignal: prefer active, then highest data rate
+        all_down = [s for s in (_parse_signal(el) for el in dish_el.findall("downSignal")) if s]
+        down_sig = (
+            next((s for s in all_down if s.active), None)
+            or (max(all_down, key=lambda s: s.data_rate_bps) if all_down else None)
+        )
+        all_up = [s for s in (_parse_signal(el) for el in dish_el.findall("upSignal")) if s]
+        up_sig = (
+            next((s for s in all_up if s.active), None)
+            or (max(all_up, key=lambda s: s.data_rate_bps) if all_up else None)
+        )
 
-            complex_dish_counts[cid] = complex_dish_counts.get(cid, 0) + 1
+        has_active = (
+            (down_sig is not None and down_sig.active)
+            or (up_sig is not None and up_sig.active)
+        )
 
-            down_sig = next(
-                (s for s in (_parse_signal(el) for el in dish_el.findall("downSignal")) if s),
-                None,
-            )
-            up_sig = next(
-                (s for s in (_parse_signal(el) for el in dish_el.findall("upSignal")) if s),
-                None,
-            )
-
-            has_active = (
-                (down_sig is not None and down_sig.active)
-                or (up_sig is not None and up_sig.active)
-            )
-
-            dishes.append(DSNDish(
-                dish_name=dish_el.get("name", ""),
-                complex_id=cid,
-                complex_name=meta["name"],
-                location=meta["location"],
-                flag=meta["flag"],
-                azimuth_deg=_safe_float(dish_el.get("azimuthAngle")),
-                elevation_deg=_safe_float(dish_el.get("elevationAngle")),
-                rtlt_sec=_safe_float(target_el.get("rtlt")),
-                range_km=_safe_float(target_el.get("downlegRange")),
-                activity=dish_el.get("activity", ""),
-                down_signal=down_sig,
-                up_signal=up_sig,
-                has_active_signal=has_active,
-            ))
+        dishes.append(DSNDish(
+            dish_name=dish_el.get("name", ""),
+            complex_id=cid,
+            complex_name=meta["name"],
+            location=meta["location"],
+            flag=meta["flag"],
+            azimuth_deg=_safe_float(dish_el.get("azimuthAngle")),
+            elevation_deg=_safe_float(dish_el.get("elevationAngle")),
+            rtlt_sec=_safe_float(target_el.get("rtlt")),
+            range_km=_safe_float(target_el.get("downlegRange")),
+            activity=dish_el.get("activity", ""),
+            down_signal=down_sig,
+            up_signal=up_sig,
+            has_active_signal=has_active,
+        ))
 
     # Primary dish: prefer active signal, else first
     primary = next((d for d in dishes if d.has_active_signal), dishes[0] if dishes else None)
