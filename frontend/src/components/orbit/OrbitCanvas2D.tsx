@@ -393,7 +393,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     <div className="relative flex flex-col">
       <div
         ref={containerRef}
-        className="relative w-full aspect-square rounded-xl border border-slate-800 bg-[#050d1a] overflow-hidden
+        className="relative w-full aspect-square max-w-[calc(100svh-6rem)] mx-auto rounded-xl border border-slate-800 bg-[#050d1a] overflow-hidden
                    shadow-[0_0_40px_rgba(6,182,212,0.06)] ring-1 ring-slate-800"
       >
         {!current && (

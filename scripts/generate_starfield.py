@@ -106,7 +106,7 @@ def bv_to_rgb(bv):
 
 # ── Image generation ──────────────────────────────────────────────────────────
 
-def generate(stars, size=2048, out="frontend/public/starfield.png"):
+def generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=6.0):
     img = Image.new("RGBA", (size, size), (0, 0, 0, 255))
     draw = ImageDraw.Draw(img)
 
@@ -119,6 +119,8 @@ def generate(stars, size=2048, out="frontend/public/starfield.png"):
 
     placed = 0
     for ra, dec, mag, bv in stars:
+        if mag > mag_limit:
+            continue
         lam, beta = to_ecliptic(ra, dec)
 
         # Azimuthal equidistant: distance from ecliptic N pole
@@ -171,5 +173,5 @@ if __name__ == "__main__":
     os.chdir(repo_root)
 
     stars = fetch_bsc5()
-    generate(stars, size=2048, out="frontend/public/starfield.png")
+    generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=6.0)
     print("Done.")
