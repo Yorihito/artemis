@@ -29,7 +29,8 @@ _POLE_DEC =  66.5607 # degrees
 # ── Fetch from Hipparcos (Vizier I/239/hip_main) ──────────────────────────────
 
 def fetch_hipparcos(fov_deg=FOV_DEG, mag_limit=MAG_LIMIT):
-    half_fov_arcmin = int(fov_deg / 2 * 60) + 1   # +1 for margin
+    # Fetch enough to cover the square canvas corners (half_fov × √2)
+    half_fov_arcmin = int(fov_deg / 2 * math.sqrt(2) * 60) + 2
     print(f"Fetching Hipparcos within {fov_deg/2:.0f}° of ecliptic N pole "
           f"(mag < {mag_limit}) …")
     url = (
