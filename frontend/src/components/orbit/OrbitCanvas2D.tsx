@@ -148,15 +148,13 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .orion-pulse { animation: orion-pulse 2s ease-out infinite; }
     `);
 
-    // ── background: stars ────────────────────────────────────────────────
-    const rng = d3.randomLcg(42);
-    const rand = () => rng();
-    for (let i = 0; i < 200; i++) {
-      svg.append("circle")
-        .attr("cx", rand() * w).attr("cy", rand() * h)
-        .attr("r",  rand() * 1.4 + 0.2)
-        .attr("fill", "white").attr("opacity", rand() * 0.55 + 0.15);
-    }
+    // ── background: real stars (BSC5 PNG, fixed — not affected by zoom) ──
+    svg.append("image")
+      .attr("href", "/starfield.png")
+      .attr("x", 0).attr("y", 0)
+      .attr("width", w).attr("height", h)
+      .attr("preserveAspectRatio", "xMidYMid slice")
+      .attr("opacity", 0.85);
 
     // ── zoomable group + zoom ────────────────────────────────────────────
     const g = svg.append("g").attr("class", "zoomable");
