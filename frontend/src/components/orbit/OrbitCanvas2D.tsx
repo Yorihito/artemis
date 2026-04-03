@@ -89,10 +89,11 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       ?? (current ? moonPositionAt(new Date(current.timestamp)) : moonPositionAt(new Date()));
 
     // ── Approach mode & view parameters ─────────────────────────────────
-    const approaching: ApproachMode =
+    const autoApproachDraw: ApproachMode =
       current?.is_approaching && current.approach_type
         ? (current.approach_type as ApproachMode)
         : null;
+    const approaching: ApproachMode = manualApproach ?? autoApproachDraw;
 
     const viewRadius = VIEW_RADIUS[approaching ?? "normal"];
     const viewMargin = approaching ? 20 : 40;
@@ -366,7 +367,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .attr("font-size", 9).attr("font-family", "monospace")
       .text(fmtKm(barKm));
 
-  }, [current, trajectory, showSats]);
+  }, [current, trajectory, showSats, manualApproach]);
 
   useEffect(() => { draw(); }, [draw]);
 
