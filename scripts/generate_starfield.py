@@ -106,7 +106,7 @@ def bv_to_rgb(bv):
 
 # ── Image generation ──────────────────────────────────────────────────────────
 
-def generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=6.0):
+def generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=5.5):
     img = Image.new("RGBA", (size, size), (0, 0, 0, 255))
     draw = ImageDraw.Draw(img)
 
@@ -173,5 +173,5 @@ if __name__ == "__main__":
     os.chdir(repo_root)
 
     stars = fetch_bsc5()
-    generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=6.0)
+    generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=5.5)
     print("Done.")
