@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+from pydantic import Field
 from app.services.cache_service import cache_service
 from app.services.visitor_service import visitor_service
 from app.models.system import SystemStatusResponse
@@ -9,7 +10,7 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 
 
 class VisitRequest(BaseModel):
-    session_id: str
+    session_id: str = Field(min_length=1, max_length=128)
 
 
 class VisitorStatsResponse(BaseModel):

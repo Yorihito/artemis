@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 SPACECRAFT_NAME = "EM2"
 DSN_URL = "https://eyes.nasa.gov/dsn/data/dsn.xml"
+MAX_DSN_XML_BYTES = 1_000_000
 
 COMPLEX_META = {
     "gdscc": {"name": "Goldstone", "location": "California, USA", "flag": "🇺🇸"},
@@ -140,6 +141,9 @@ async def fetch_dsn_status() -> Optional[DSNStatus]:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{DSN_URL}?r={ts}")
             r.raise_for_status()
+        if len(r.content) > MAX_DSN_XML_BYTES:
+            logger.warning("DSN response too large (%s bytes)", len(r.content))
+            return None
         return _parse_dsn_xml(r.text)
     except Exception as exc:
         logger.warning("DSN fetch failed: %s", exc)
