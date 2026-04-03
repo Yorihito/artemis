@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Generate a starfield PNG from BSC5 (Yale Bright Star Catalogue) via Vizier.
+Generate a starfield PNG from Hipparcos catalogue via Vizier.
 
-Projection: Azimuthal equidistant from the north ecliptic pole —
-matching the top-down ecliptic view used by the orbit canvas.
+Projection: Azimuthal equidistant from the north ecliptic pole,
+with a 30° total field of view (matching typical screen viewing angle).
+
+The ecliptic north pole (RA=270°, Dec=66.56°) is at canvas centre;
+the 15° circle maps to the canvas edge.
 
 Output: frontend/public/starfield.png  (2048x2048, RGBA)
 """
@@ -12,31 +15,31 @@ import math
 import requests
 from PIL import Image, ImageDraw
 
-# ── Fetch BSC5 from Vizier ────────────────────────────────────────────────────
+# ── Constants ─────────────────────────────────────────────────────────────────
 
-def hms_to_deg(s):
-    """'HH MM SS.S' or 'HH:MM:SS.S' → decimal degrees (RA)."""
-    s = s.strip().replace(":", " ")
-    parts = s.split()
-    h, m, sec = float(parts[0]), float(parts[1]), float(parts[2])
-    return (h + m / 60 + sec / 3600) * 15.0
+FOV_DEG   = 30.0   # total field of view (degrees)
+MAG_LIMIT = 9.0    # faintest magnitude to include
 
-def dms_to_deg(s):
-    """'+DD MM SS.S' or '-DD MM SS.S' → decimal degrees (Dec)."""
-    s = s.strip().replace(":", " ")
-    sign = -1 if s.startswith("-") else 1
-    s = s.lstrip("+-")
-    parts = s.split()
-    d, m, sec = float(parts[0]), float(parts[1]), float(parts[2])
-    return sign * (d + m / 60 + sec / 3600)
+_EPS = math.radians(23.4393)   # obliquity of ecliptic J2000
 
-def fetch_bsc5():
-    print("Fetching BSC5 from Vizier …")
+# Equatorial coords of the ecliptic north pole (J2000)
+_POLE_RA  = 270.0    # degrees
+_POLE_DEC =  66.5607 # degrees
+
+# ── Fetch from Hipparcos (Vizier I/239/hip_main) ──────────────────────────────
+
+def fetch_hipparcos(fov_deg=FOV_DEG, mag_limit=MAG_LIMIT):
+    half_fov_arcmin = int(fov_deg / 2 * 60) + 1   # +1 for margin
+    print(f"Fetching Hipparcos within {fov_deg/2:.0f}° of ecliptic N pole "
+          f"(mag < {mag_limit}) …")
     url = (
         "https://vizier.cds.unistra.fr/viz-bin/asu-tsv"
-        "?-source=V/50"
-        "&-out=RAJ2000,DEJ2000,Vmag,B-V"
-        "&-out.max=9200"
+        "?-source=I/239/hip_main"
+        "&-out=RAICRS,DEICRS,Vmag,B-V"
+        f"&-c.ra={_POLE_RA}&-c.dec={_POLE_DEC}"
+        f"&-c.rm={half_fov_arcmin}"
+        f"&Vmag=%3C{mag_limit}"
+        "&-out.max=5000"
     )
     r = requests.get(url, timeout=90)
     r.raise_for_status()
@@ -51,13 +54,13 @@ def fetch_bsc5():
             header_done = True
             continue
         if not header_done:
-            continue  # skip column name / unit rows
+            continue
         parts = line.split("\t")
         if len(parts) < 3:
             continue
         try:
-            ra  = hms_to_deg(parts[0])
-            dec = dms_to_deg(parts[1])
+            ra  = float(parts[0])
+            dec = float(parts[1])
             mag = float(parts[2])
             bv  = float(parts[3]) if len(parts) > 3 and parts[3].strip() else 0.6
             stars.append((ra, dec, mag, bv))
@@ -68,8 +71,6 @@ def fetch_bsc5():
     return stars
 
 # ── Coordinate transform ──────────────────────────────────────────────────────
-
-_EPS = math.radians(23.4393)  # obliquity of ecliptic J2000
 
 def to_ecliptic(ra_deg, dec_deg):
     """Equatorial (J2000) → ecliptic (λ, β) in radians."""
@@ -106,25 +107,25 @@ def bv_to_rgb(bv):
 
 # ── Image generation ──────────────────────────────────────────────────────────
 
-def generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=5.5):
+def generate(stars, size=2048, out="frontend/public/starfield.png",
+             fov_deg=FOV_DEG):
     img = Image.new("RGBA", (size, size), (0, 0, 0, 255))
     draw = ImageDraw.Draw(img)
 
     cx = cy = size // 2
-    # Azimuthal equidistant from ecliptic N pole:
-    #   β = π/2 (N pole) → r = 0
-    #   β = 0   (equator) → r = size/2  (fills the canvas)
-    # scale = (size/2) / (π/2) = size/π
-    scale = size / math.pi
+
+    # Azimuthal equidistant from ecliptic N pole.
+    # The half-FOV angle maps to the canvas radius (size/2).
+    # scale = (size/2) / radians(fov_deg/2)
+    half_fov_rad = math.radians(fov_deg / 2)
+    scale = (size / 2) / half_fov_rad
 
     placed = 0
     for ra, dec, mag, bv in stars:
-        if mag > mag_limit:
-            continue
         lam, beta = to_ecliptic(ra, dec)
 
-        # Azimuthal equidistant: distance from ecliptic N pole
-        r = (math.pi / 2 - beta) * scale  # β=π/2 → r=0, β=0 → r=scale=size/2
+        # Angular distance from ecliptic N pole
+        r = (math.pi / 2 - beta) * scale
 
         x = cx + r * math.cos(lam)
         y = cy - r * math.sin(lam)   # screen Y inverted
@@ -135,11 +136,10 @@ def generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=5.
 
         rgb = bv_to_rgb(bv)
 
-        # Dot radius: mag 1 → 2.5 px, mag 6 → 0.8 px, mag 8 → 0.4 px
-        dot_r = max(0.4, 2.8 - mag * 0.32)
+        # Dot radius: mag 1 → 3px, mag 6 → 1px, mag 9 → 0.4px
+        dot_r = max(0.4, 3.2 - mag * 0.32)
 
         if dot_r >= 1.2:
-            # Glow layers for bright stars
             glow_steps = int(dot_r * 3)
             for s in range(glow_steps, 0, -1):
                 frac   = s / glow_steps
@@ -147,13 +147,11 @@ def generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=5.
                 alpha  = int(200 * frac ** 2.5)
                 box = [px - radius, py - radius, px + radius, py + radius]
                 draw.ellipse(box, fill=(*rgb, alpha))
-            # Solid core
             cr = max(1, int(dot_r * 0.6))
             draw.ellipse([px - cr, py - cr, px + cr, py + cr], fill=(*rgb, 255))
         elif dot_r >= 0.7:
             draw.ellipse([px, py, px + 1, py + 1], fill=(*rgb, 255))
         else:
-            # Sub-pixel: draw with partial alpha
             draw.point((px, py), fill=(*rgb, int(255 * dot_r / 0.7)))
 
         placed += 1
@@ -167,11 +165,10 @@ def generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=5.
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import sys, os
-    # Run from repo root
+    import os
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(repo_root)
 
-    stars = fetch_bsc5()
-    generate(stars, size=2048, out="frontend/public/starfield.png", mag_limit=5.5)
+    stars = fetch_hipparcos(fov_deg=FOV_DEG, mag_limit=MAG_LIMIT)
+    generate(stars, size=2048, out="frontend/public/starfield.png", fov_deg=FOV_DEG)
     print("Done.")
