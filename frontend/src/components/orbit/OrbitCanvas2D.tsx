@@ -61,6 +61,8 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
   const svgRef        = useRef<SVGSVGElement>(null);
   const containerRef  = useRef<HTMLDivElement>(null);
   const prevModeRef   = useRef<string>("normal");
+  const [manualApproach, setManualApproach] = useState<ApproachMode>(null);
+
   const [showSats, setShowSats] = useState<Record<SatId, boolean>>(() => {
     if (typeof window === "undefined") return { himawari: false, goesE: false, goesW: false };
     try {
@@ -376,10 +378,17 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     return () => ro.disconnect();
   }, [draw]);
 
-  const approaching: ApproachMode =
+  const autoApproach: ApproachMode =
     current?.is_approaching && current.approach_type
       ? (current.approach_type as ApproachMode)
       : null;
+
+  // manualApproach overrides auto; null = follow auto
+  const approaching: ApproachMode = manualApproach ?? autoApproach;
+
+  const toggleApproach = (mode: NonNullable<ApproachMode>) => {
+    setManualApproach((prev) => (prev === mode ? null : mode));
+  };
 
   return (
     <div className="relative flex flex-col">
@@ -444,15 +453,29 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
             ))}
           </div>
 
-          {/* Approach mode indicator — below SAT row */}
-          {approaching && (
-            <div className="bg-orange-950/90 backdrop-blur-sm px-2.5 py-1.5
-                            rounded-lg border border-orange-800">
-              <span className="text-[10px] text-orange-400 font-mono tracking-widest">
-                {approaching === "moon" ? "⚠ MOON APPROACH" : "⚠ EARTH APPROACH"}
-              </span>
-            </div>
-          )}
+          {/* VIEW mode buttons — always visible, double as approach badge */}
+          <div className="flex items-center gap-1.5
+                          bg-[#050d1a]/90 backdrop-blur-sm px-2.5 py-1.5
+                          rounded-lg border border-slate-800">
+            <span className="text-[10px] text-slate-500 font-mono tracking-widest mr-1">VIEW</span>
+            {(["moon", "earth"] as const).map((mode) => {
+              const isActive = approaching === mode;
+              const isAuto   = autoApproach === mode && manualApproach === null;
+              return (
+                <button
+                  key={mode}
+                  onClick={() => toggleApproach(mode)}
+                  className={`text-[10px] px-2 py-0.5 rounded font-mono transition border ${
+                    isActive
+                      ? "bg-orange-900/60 border-orange-600 text-orange-300"
+                      : "bg-transparent border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {isAuto ? "⚠ " : ""}{mode === "moon" ? "MOON" : "EARTH"}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Zoom hint */}
