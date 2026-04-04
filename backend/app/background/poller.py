@@ -2,6 +2,10 @@
 Background polling loop.
 - Normal cruise: polls every POLL_INTERVAL_NORMAL_SECONDS (30 min)
 - Approach phase: polls every POLL_INTERVAL_APPROACH_SECONDS (1 min)
+
+Data source priority (real mode):
+  1. NASA OEM file — official JSC flight-dynamics ephemeris, updated ~daily
+  2. JPL Horizons  — fallback if OEM unavailable
 """
 import asyncio
 import logging
@@ -14,6 +18,7 @@ from dateutil.parser import parse as parse_dt
 from app.config import settings
 from app.services.cache_service import cache_service
 from app.services import horizons_client
+from app.services import nasa_oem_client
 from app.services import telemetry_normalizer
 from app.services.mock_data import generate_mock_state
 from app.services.trajectory_store import trajectory_store
@@ -29,15 +34,31 @@ async def _fetch_and_update() -> bool:
             now, position, velocity = generate_mock_state()
             source = "Mock"
         else:
-            raw = await horizons_client.fetch_current_state()
-            if raw is None:
-                logger.warning("Horizons returned no data")
-                await cache_service.record_error("Horizons", "No data returned")
-                return False
-            now = raw.timestamp
-            position = raw.position
-            velocity = raw.velocity
-            source = "Horizons"
+            source = None
+            now = position = velocity = None
+
+            # --- Primary: NASA OEM file ---
+            if not settings.OEM_DISABLED:
+                oem_raw = await nasa_oem_client.fetch_current_state()
+                if oem_raw is not None:
+                    now = oem_raw.timestamp
+                    position = oem_raw.position
+                    velocity = oem_raw.velocity
+                    source = "NASA OEM"
+                else:
+                    logger.warning("NASA OEM returned no data, falling back to Horizons")
+
+            # --- Fallback: JPL Horizons ---
+            if source is None:
+                raw = await horizons_client.fetch_current_state()
+                if raw is None:
+                    logger.warning("Horizons returned no data")
+                    await cache_service.record_error("Horizons", "No data returned")
+                    return False
+                now = raw.timestamp
+                position = raw.position
+                velocity = raw.velocity
+                source = "Horizons"
 
         moon_position = None
         if not settings.USE_MOCK:
@@ -110,15 +131,37 @@ async def _prepopulate_history():
     for pt in stored:
         cache_service.trajectory_points.append(pt)
 
-    # 2. Determine the gap to fill from Horizons
     latest_stored = trajectory_store.latest_timestamp()
+
+    # 2a. Try to fill history from NASA OEM file (preferred: denser data, official source)
+    if not settings.OEM_DISABLED:
+        oem_vectors = await nasa_oem_client.fetch_latest_oem()
+        if oem_vectors:
+            oem_start = oem_vectors[0][0]
+            oem_end = oem_vectors[-1][0]
+            new_points = []
+            for ts, pos, _ in oem_vectors:
+                if latest_stored is not None and ts <= latest_stored:
+                    continue  # Already stored
+                pt = TrajectoryPoint(timestamp=ts, x=pos.x, y=pos.y, z=pos.z)
+                cache_service.trajectory_points.append(pt)
+                new_points.append(pt)
+            if new_points:
+                trajectory_store.save_batch(new_points)
+            logger.info(
+                f"Pre-populated {len(new_points)} new points from NASA OEM "
+                f"({oem_start.isoformat()} → {oem_end.isoformat()}, "
+                f"total in cache: {len(cache_service.trajectory_points)})"
+            )
+            # Update latest_stored so Horizons gap-fill below uses the right start
+            latest_stored = trajectory_store.latest_timestamp()
+
+    # 2b. Fill any remaining gap (after OEM coverage) from Horizons
     ephemeris_start = parse_dt(settings.HORIZONS_EPHEMERIS_START)
 
     if latest_stored is None:
-        # No stored data at all — fetch full history
         fetch_from = ephemeris_start
     else:
-        # Fetch only from the last stored point + 30 min onwards
         fetch_from = latest_stored + timedelta(minutes=30)
 
     if fetch_from >= now:

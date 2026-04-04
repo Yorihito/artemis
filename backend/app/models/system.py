@@ -18,6 +18,12 @@ class CacheInfo(BaseModel):
     newest_point_at: Optional[datetime] = None
 
 
+class OEMInfo(BaseModel):
+    enabled: bool
+    url: Optional[str] = None
+    cache_age_minutes: Optional[float] = None
+
+
 class SystemStatusResponse(BaseModel):
     sources: List[SourceInfo]
     cache: CacheInfo
@@ -25,3 +31,4 @@ class SystemStatusResponse(BaseModel):
     approach_type: Optional[str] = None
     poll_interval_seconds: int
     uptime_seconds: float
+    oem: Optional[OEMInfo] = None

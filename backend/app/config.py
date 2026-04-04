@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     # Mock mode (use simulated data instead of real Horizons API)
     USE_MOCK: bool = True
 
+    # NASA OEM (Orbital Ephemeris Message) file — official JSC flight-dynamics data
+    # Set OEM_DISABLED=true to skip OEM and use Horizons only
+    OEM_DISABLED: bool = False
+
     # JPL Horizons
     HORIZONS_BASE_URL: str = "https://ssd.jpl.nasa.gov/api/horizons.api"
     # Artemis II NAIF ID — TBD after launch confirmation.
