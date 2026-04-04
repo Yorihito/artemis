@@ -65,6 +65,9 @@ def normalize(
         distance_from_moon_km=distance_from_moon_km,
         velocity_kms=velocity_kms,
         mission_elapsed_seconds=met,
+        position=position,
+        velocity=velocity,
+        moon_position=moon_pos,
     )
     is_approaching, approach_type = detect_approach(
         distance_from_moon_km=distance_from_moon_km,
