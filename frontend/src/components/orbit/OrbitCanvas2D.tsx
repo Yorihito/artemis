@@ -52,9 +52,12 @@ function fmtKm(km: number): string {
 }
 
 function getGAST(date: Date): number {
+  // GMST = 280.46061837 + 360.98564736629 * D  (D = days since J2000)
+  // The previous formula used only the secular precession term (~0.986 deg/day)
+  // and was missing the diurnal rotation term (~360.985 deg/day).
   const J2000_MS = new Date("2000-01-01T12:00:00Z").getTime();
-  const T = (date.getTime() - J2000_MS) / (1000 * 86400 * 36525);
-  return ((100.4606184 + 36000.77004 * T) % 360 + 360) % 360;
+  const D = (date.getTime() - J2000_MS) / (1000 * 86400);
+  return ((280.46061837 + 360.98564736629 * D) % 360 + 360) % 360;
 }
 
 export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajectoryRangeChange }: Props) {
@@ -243,8 +246,8 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .text("EARTH");
 
     // ── Geostationary satellites ─────────────────────────────────────────
-    const satTimestamp = current ? new Date(current.timestamp) : new Date();
-    const gast = getGAST(satTimestamp);
+    // Use current wall-clock time so satellites reflect real-time Earth rotation.
+    const gast = getGAST(new Date());
     SAT_DEFS.forEach((sat) => {
       if (!showSats[sat.id]) return;
       const angle = ((sat.longDeg + gast) * Math.PI) / 180;
@@ -368,6 +371,14 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
   }, [current, trajectory, showSats, manualApproach]);
 
   useEffect(() => { draw(); }, [draw]);
+
+  // Redraw every second when any satellite is visible so Earth rotation is animated.
+  const anySatVisible = Object.values(showSats).some(Boolean);
+  useEffect(() => {
+    if (!anySatVisible) return;
+    const id = setInterval(() => draw(), 1000);
+    return () => clearInterval(id);
+  }, [anySatVisible, draw]);
 
   useEffect(() => {
     const container = containerRef.current;
