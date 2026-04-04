@@ -9,10 +9,12 @@ import { ApproachAlert } from "@/components/common/ApproachAlert";
 import { RefreshIntervalSelector } from "@/components/common/RefreshIntervalSelector";
 import { VisitorCounter } from "@/components/common/VisitorCounter";
 import { DSNPanel } from "@/components/dsn/DSNPanel";
+import { NewsPanel } from "@/components/news/NewsPanel";
 import { useMissionCurrent } from "@/hooks/useMissionCurrent";
 import { useTrajectory } from "@/hooks/useTrajectory";
 import { useMissionEvents } from "@/hooks/useMissionEvents";
 import { useDSN } from "@/hooks/useDSN";
+import { useNews } from "@/hooks/useNews";
 import {
   DEFAULT_REFRESH_INTERVAL_MS,
 } from "@/constants/mission-config";
@@ -31,9 +33,12 @@ const OrbitCanvas2D = dynamic(
   }
 );
 
+type SidebarTab = "mission" | "news";
+
 export default function DashboardPage() {
   const [refreshInterval, setRefreshInterval] = useState(DEFAULT_REFRESH_INTERVAL_MS);
   const [showApproachAlert, setShowApproachAlert] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("mission");
   const [trajectoryRange, setTrajectoryRange] = useState<"off" | "1h" | "2h" | "8h" | "mission">(() => {
     if (typeof window === "undefined") return "mission";
     const s = localStorage.getItem("artemis_traj_range");
@@ -47,6 +52,7 @@ export default function DashboardPage() {
   const { data: trajectoryData } = useTrajectory(trajectoryRange === "off" ? "mission" : trajectoryRange as "1h" | "2h" | "8h" | "mission");
   const { data: eventsData } = useMissionEvents();
   const { data: dsnData, isLoading: dsnLoading } = useDSN();
+  const { data: newsData, isLoading: newsLoading } = useNews();
 
   useEffect(() => {
     localStorage.setItem("artemis_traj_range", trajectoryRange);
@@ -98,17 +104,44 @@ export default function DashboardPage() {
         />
 
         <div className="flex flex-col gap-3">
-          <TelemetryGrid data={data} />
-          <DSNPanel data={dsnData} isLoading={dsnLoading} />
-          {eventsData && <TimelinePanel events={eventsData.events} />}
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
-            <RefreshIntervalSelector
-              current={refreshInterval}
-              isApproaching={data?.is_approaching ?? false}
-              onChange={handleSetInterval}
-              onManualRefresh={handleManualRefresh}
-            />
+          {/* Tab bar */}
+          <div className="flex rounded-lg border border-slate-800 overflow-hidden text-[11px] font-mono tracking-widest">
+            {(["mission", "news"] as SidebarTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSidebarTab(tab)}
+                className={`flex-1 py-2 uppercase transition-colors
+                  ${sidebarTab === tab
+                    ? "bg-slate-800 text-slate-100"
+                    : "bg-slate-900/40 text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
+                  }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
+
+          {/* Mission tab */}
+          {sidebarTab === "mission" && (
+            <>
+              <TelemetryGrid data={data} />
+              <DSNPanel data={dsnData} isLoading={dsnLoading} />
+              {eventsData && <TimelinePanel events={eventsData.events} />}
+              <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
+                <RefreshIntervalSelector
+                  current={refreshInterval}
+                  isApproaching={data?.is_approaching ?? false}
+                  onChange={handleSetInterval}
+                  onManualRefresh={handleManualRefresh}
+                />
+              </div>
+            </>
+          )}
+
+          {/* News tab */}
+          {sidebarTab === "news" && (
+            <NewsPanel data={newsData} isLoading={newsLoading} />
+          )}
         </div>
       </main>
 

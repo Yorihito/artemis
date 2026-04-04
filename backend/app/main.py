@@ -1,13 +1,15 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import mission, system, dsn
+from app.routers import mission, system, dsn, news
 from app.background.poller import polling_loop
+from app.services import news_crawler, news_store
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
@@ -19,17 +21,34 @@ logging.getLogger("azure.data.tables").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
+NEWS_CRAWL_INTERVAL_SECONDS = 3600  # 1 hour
+
+
+async def news_crawl_loop() -> None:
+    """Crawl news feeds once on startup, then every hour."""
+    logger.info("News crawl loop started")
+    while True:
+        try:
+            items = await news_crawler.crawl()
+            await news_store.save(items, datetime.now(timezone.utc))
+        except Exception as e:
+            logger.error(f"News crawl failed: {e}")
+        await asyncio.sleep(NEWS_CRAWL_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting Artemis II API (mock={settings.USE_MOCK})")
-    task = asyncio.create_task(polling_loop())
+    task        = asyncio.create_task(polling_loop())
+    news_task   = asyncio.create_task(news_crawl_loop())
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
-    logger.info("Polling loop stopped")
+    for t in (task, news_task):
+        t.cancel()
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
+    logger.info("Background tasks stopped")
 
 
 app = FastAPI(
@@ -50,6 +69,7 @@ app.add_middleware(
 app.include_router(mission.router)
 app.include_router(system.router)
 app.include_router(dsn.router)
+app.include_router(news.router)
 
 
 @app.get("/health")
