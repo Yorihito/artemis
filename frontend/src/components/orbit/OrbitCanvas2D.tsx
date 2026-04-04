@@ -169,6 +169,11 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     svg.on("dblclick.zoom", () =>
       svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity));
 
+    // Restore current zoom transform to the newly created g element.
+    // Without this, every draw() call (e.g. the 1-second satellite redraw)
+    // resets g to identity even though the SVG element retains __zoom state.
+    g.attr("transform", d3.zoomTransform(svgRef.current).toString());
+
     // Reset zoom when approach mode changes
     const modeKey = approaching ?? "normal";
     if (prevModeRef.current !== modeKey) {
