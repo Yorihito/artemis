@@ -381,7 +381,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
   const anySatVisible = Object.values(showSats).some(Boolean);
   useEffect(() => {
     if (!anySatVisible) return;
-    const id = setInterval(() => draw(), 1000);
+    const id = setInterval(() => draw(), 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [anySatVisible, draw]);
 
