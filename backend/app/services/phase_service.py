@@ -22,11 +22,15 @@ def detect_phase(
     if met < 0:
         return MissionPhase.Prelaunch
 
-    # Splashdown / Complete: near Earth, very slow
-    if distance_from_earth_km < 6500:
+    # Complete: on surface, essentially stationary
+    if distance_from_earth_km < 6380 and velocity_kms < 0.1:
+        return MissionPhase.Complete
+
+    # Splashdown: near ocean surface, still decelerating
+    if distance_from_earth_km < 6380:
         return MissionPhase.Splashdown
 
-    # Re-entry: within 120 km altitude (Earth radius ~6371 km)
+    # Re-entry: within ~120 km altitude (Earth radius ~6371 km)
     if distance_from_earth_km < 6491:
         return MissionPhase.Reentry
 
