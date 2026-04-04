@@ -51,6 +51,15 @@ function fmtKm(km: number): string {
   return km >= 1_000 ? `${km / 1_000}k km` : `${km} km`;
 }
 
+function sunEclipticLongitudeRad(date: Date): number {
+  // Geocentric apparent ecliptic longitude of the Sun (low-precision, ~1°)
+  const J2000_MS = new Date("2000-01-01T12:00:00Z").getTime();
+  const n = (date.getTime() - J2000_MS) / 86_400_000; // days since J2000
+  const g = ((357.528 + 0.9856003 * n) % 360) * Math.PI / 180; // mean anomaly
+  const lambda = 280.460 + 0.9856474 * n + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g);
+  return ((lambda % 360) + 360) % 360 * Math.PI / 180;
+}
+
 function getGAST(date: Date): number {
   // GMST = 280.46061837 + 360.98564736629 * D  (D = days since J2000)
   // The previous formula used only the secular precession term (~0.986 deg/day)
@@ -134,6 +143,11 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .attr("markerWidth", 6).attr("markerHeight", 6)
       .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
       .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", "#94a3b8");
+
+    defs.append("marker").attr("id", "sunArrow")
+      .attr("markerWidth", 6).attr("markerHeight", 6)
+      .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
+      .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", "#fbbf24");
 
     const earthGrad = defs.append("radialGradient").attr("id", "earthGrad");
     earthGrad.append("stop").attr("offset", "0%").attr("stop-color", "#60a5fa");
@@ -249,6 +263,30 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .attr("text-anchor", "middle").attr("fill", "#60a5fa")
       .attr("font-size", 10).attr("font-family", "monospace").attr("letter-spacing", 1)
       .text("EARTH");
+
+    // ── Sun direction ─────────────────────────────────────────────────────
+    if (!approaching) {
+      const sunDate = current ? new Date(current.timestamp) : new Date();
+      const lambdaRad = sunEclipticLongitudeRad(sunDate);
+      const dist = viewRadius * 0.78;
+      const [slx, sly] = toSVG(dist * Math.cos(lambdaRad), dist * Math.sin(lambdaRad));
+      const dx = slx - esx, dy = sly - esy;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      g.append("line")
+        .attr("x1", esx + ux * (earthR + 8)).attr("y1", esy + uy * (earthR + 8))
+        .attr("x2", slx).attr("y2", sly)
+        .attr("stroke", "#fbbf24").attr("stroke-width", 0.8)
+        .attr("stroke-opacity", 0.45).attr("stroke-dasharray", "3 8")
+        .attr("marker-end", "url(#sunArrow)");
+      g.append("text")
+        .attr("x", slx + ux * 14).attr("y", sly + uy * 14)
+        .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+        .attr("fill", "#fbbf24").attr("font-size", 9)
+        .attr("font-family", "monospace").attr("letter-spacing", 1)
+        .attr("opacity", 0.65)
+        .text("SUN");
+    }
 
     // ── Geostationary satellites ─────────────────────────────────────────
     // Use current wall-clock time so satellites reflect real-time Earth rotation.
