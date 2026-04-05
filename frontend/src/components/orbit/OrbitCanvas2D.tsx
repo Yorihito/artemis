@@ -57,8 +57,6 @@ const ORBITAL_ELEMENTS = {
   mars:    { a: 1.52366231, L0: 355.45332, Lrate: 0.52400048 },
 } as const;
 
-// Orion constellation center (Betelgeuse ~RA 88.8°, Dec +7.4°) → ecliptic longitude ≈ 88°
-const ORION_ECL_LON_DEG = 88;
 
 function fmtKm(km: number): string {
   return km >= 1_000 ? `${km / 1_000}k km` : `${km} km`;
@@ -186,10 +184,6 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     sunGrad.append("stop").attr("offset", "60%").attr("stop-color", "#fbbf24");
     sunGrad.append("stop").attr("offset", "100%").attr("stop-color", "#d97706");
 
-    defs.append("marker").attr("id", "orionArrow")
-      .attr("markerWidth", 6).attr("markerHeight", 6)
-      .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
-      .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", "#a78bfa");
 
     defs.append("style").text(`
       @keyframes orion-pulse {
@@ -317,24 +311,6 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
         .attr("font-size", 9).attr("font-family", "monospace")
         .text("MARS");
 
-      // Orion constellation direction arrow (ecliptic lon ~88°, from Earth)
-      // This arrow shows the direction of the Orion star constellation in the ecliptic plane
-      const orionRad = ORION_ECL_LON_DEG * Math.PI / 180;
-      const arrowDx = Math.cos(orionRad);
-      const arrowDy = -Math.sin(orionRad); // SVG Y inverted
-      const arrowPx = 62;
-      g.append("line")
-        .attr("x1", ex).attr("y1", ey)
-        .attr("x2", ex + arrowDx * arrowPx).attr("y2", ey + arrowDy * arrowPx)
-        .attr("stroke", "#a78bfa").attr("stroke-width", 1.5)
-        .attr("stroke-dasharray", "4 3")
-        .attr("marker-end", "url(#orionArrow)");
-      g.append("text")
-        .attr("x", ex + arrowDx * (arrowPx + 22))
-        .attr("y", ey + arrowDy * (arrowPx + 22) + 3)
-        .attr("text-anchor", "middle").attr("fill", "#a78bfa")
-        .attr("font-size", 8).attr("font-family", "monospace")
-        .text("★ ORION座");
 
       // Badge
       svg.append("text")
