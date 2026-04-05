@@ -47,6 +47,18 @@ const APPROACH_GRID: Record<NonNullable<ApproachMode>, number[]> = {
   earth: [ 5_000, 10_000, 20_000,  50_000],
 };
 
+const AU_KM = 149_597_870.7;
+
+// Mean longitude at J2000 and daily motion (degrees) — low-precision Keplerian
+const ORBITAL_ELEMENTS = {
+  mercury: { a: 0.38709893, L0: 252.25032, Lrate: 4.09233445 },
+  earth:   { a: 1.00000011, L0: 100.46457, Lrate: 0.98560028 },
+  mars:    { a: 1.52366231, L0: 355.45332, Lrate: 0.52400048 },
+} as const;
+
+// Orion constellation center (Betelgeuse ~RA 88.8°, Dec +7.4°) → ecliptic longitude ≈ 88°
+const ORION_ECL_LON_DEG = 88;
+
 function fmtKm(km: number): string {
   return km >= 1_000 ? `${km / 1_000}k km` : `${km} km`;
 }
@@ -58,6 +70,13 @@ function sunEclipticLongitudeRad(date: Date): number {
   const g = ((357.528 + 0.9856003 * n) % 360) * Math.PI / 180; // mean anomaly
   const lambda = 280.460 + 0.9856474 * n + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g);
   return ((lambda % 360) + 360) % 360 * Math.PI / 180;
+}
+
+function planetPositionKm(a_au: number, L0_deg: number, Lrate_deg: number, date: Date): { x: number; y: number } {
+  const J2000_MS = new Date("2000-01-01T12:00:00Z").getTime();
+  const days = (date.getTime() - J2000_MS) / 86_400_000;
+  const Lrad = (((L0_deg + Lrate_deg * days) % 360) + 360) % 360 * Math.PI / 180;
+  return { x: a_au * AU_KM * Math.cos(Lrad), y: a_au * AU_KM * Math.sin(Lrad) };
 }
 
 function getGAST(date: Date): number {
@@ -74,6 +93,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
   const containerRef  = useRef<HTMLDivElement>(null);
   const prevModeRef   = useRef<string>("normal");
   const [manualApproach, setManualApproach] = useState<ApproachMode>(null);
+  const [showSunView, setShowSunView] = useState(false);
 
   const [showSats, setShowSats] = useState<Record<SatId, boolean>>(() => {
     if (typeof window === "undefined") return { himawari: false, goesE: false, goesW: false };
@@ -157,6 +177,16 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     moonGrad.append("stop").attr("offset", "0%").attr("stop-color", "#94a3b8");
     moonGrad.append("stop").attr("offset", "100%").attr("stop-color", "#334155");
 
+    const sunGrad = defs.append("radialGradient").attr("id", "sunGrad");
+    sunGrad.append("stop").attr("offset", "0%").attr("stop-color", "#fef9c3");
+    sunGrad.append("stop").attr("offset", "60%").attr("stop-color", "#fbbf24");
+    sunGrad.append("stop").attr("offset", "100%").attr("stop-color", "#d97706");
+
+    defs.append("marker").attr("id", "orionArrow")
+      .attr("markerWidth", 6).attr("markerHeight", 6)
+      .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
+      .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", "#a78bfa");
+
     defs.append("style").text(`
       @keyframes orion-pulse {
         0%   { r: ${orionDotR + 1};  opacity: 0.8; }
@@ -189,10 +219,130 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     g.attr("transform", d3.zoomTransform(svgRef.current).toString());
 
     // Reset zoom when approach mode changes
-    const modeKey = approaching ?? "normal";
+    const modeKey = showSunView ? "sun" : (approaching ?? "normal");
     if (prevModeRef.current !== modeKey) {
       svg.call(zoom.transform, d3.zoomIdentity);
       prevModeRef.current = modeKey;
+    }
+
+    // ── SUN VIEW (heliocentric, ecliptic plane) ───────────────────────────
+    if (showSunView) {
+      const viewDate = current ? new Date(current.timestamp) : new Date();
+      // Fit from Mercury to just beyond Mars (1.72 AU)
+      const SUN_VIEW_R_KM = 1.72 * AU_KM;
+      const sunMargin = 48;
+      const ss = (Math.min(w, h) / 2 - sunMargin) / SUN_VIEW_R_KM;
+      const scx = w / 2, scy = h / 2;
+      const toSun = (x: number, y: number): [number, number] =>
+        [scx + x * ss, scy - y * ss];
+
+      // Planet heliocentric positions
+      const ePos = planetPositionKm(ORBITAL_ELEMENTS.earth.a,   ORBITAL_ELEMENTS.earth.L0,   ORBITAL_ELEMENTS.earth.Lrate,   viewDate);
+      const mPos = planetPositionKm(ORBITAL_ELEMENTS.mercury.a, ORBITAL_ELEMENTS.mercury.L0, ORBITAL_ELEMENTS.mercury.Lrate, viewDate);
+      const rPos = planetPositionKm(ORBITAL_ELEMENTS.mars.a,    ORBITAL_ELEMENTS.mars.L0,    ORBITAL_ELEMENTS.mars.Lrate,    viewDate);
+
+      // Orbit rings
+      const orbits: Array<{ key: keyof typeof ORBITAL_ELEMENTS; stroke: string; label: string }> = [
+        { key: "mercury", stroke: "#334155", label: "0.39 AU" },
+        { key: "earth",   stroke: "#1e3a5f", label: "1.00 AU" },
+        { key: "mars",    stroke: "#3b1515", label: "1.52 AU" },
+      ];
+      orbits.forEach(({ key, stroke, label }) => {
+        const r = ORBITAL_ELEMENTS[key].a * AU_KM * ss;
+        g.append("circle")
+          .attr("cx", scx).attr("cy", scy).attr("r", r)
+          .attr("fill", "none").attr("stroke", stroke)
+          .attr("stroke-width", 0.7).attr("stroke-dasharray", "3 7");
+        g.append("text")
+          .attr("x", scx + r + 3).attr("y", scy - 2)
+          .attr("fill", stroke === "#1e3a5f" ? "#1e4a7a" : "#3a4a5a")
+          .attr("font-size", 7).attr("font-family", "monospace")
+          .text(label);
+      });
+
+      // Sun
+      g.append("circle").attr("cx", scx).attr("cy", scy).attr("r", 13)
+        .attr("fill", "url(#sunGrad)").attr("stroke", "#fbbf24").attr("stroke-width", 1);
+      g.append("text").attr("x", scx).attr("y", scy + 22)
+        .attr("text-anchor", "middle").attr("fill", "#fbbf24")
+        .attr("font-size", 10).attr("font-family", "monospace").attr("letter-spacing", 1)
+        .text("SUN");
+
+      // Mercury
+      const [mx, my] = toSun(mPos.x, mPos.y);
+      g.append("circle").attr("cx", mx).attr("cy", my).attr("r", 3)
+        .attr("fill", "#94a3b8").attr("stroke", "#64748b").attr("stroke-width", 0.8);
+      g.append("text").attr("x", mx).attr("y", my - 6)
+        .attr("text-anchor", "middle").attr("fill", "#94a3b8")
+        .attr("font-size", 8).attr("font-family", "monospace")
+        .text("MERCURY");
+
+      // Earth
+      const [ex, ey] = toSun(ePos.x, ePos.y);
+      g.append("circle").attr("cx", ex).attr("cy", ey).attr("r", 5)
+        .attr("fill", "url(#earthGrad)").attr("stroke", "#60a5fa").attr("stroke-width", 1);
+      g.append("text").attr("x", ex).attr("y", ey - 9)
+        .attr("text-anchor", "middle").attr("fill", "#60a5fa")
+        .attr("font-size", 9).attr("font-family", "monospace")
+        .text("EARTH");
+      // Orion spacecraft is ~1–4M km from Earth — imperceptible at AU scale, shown as sub-label
+      if (current) {
+        g.append("text").attr("x", ex).attr("y", ey + 18)
+          .attr("text-anchor", "middle").attr("fill", "#f97316")
+          .attr("font-size", 7).attr("font-family", "monospace")
+          .text("▸ ORION");
+      }
+
+      // Mars
+      const [rx, ry] = toSun(rPos.x, rPos.y);
+      g.append("circle").attr("cx", rx).attr("cy", ry).attr("r", 4)
+        .attr("fill", "#c2410c").attr("stroke", "#ef4444").attr("stroke-width", 0.8);
+      g.append("text").attr("x", rx).attr("y", ry - 7)
+        .attr("text-anchor", "middle").attr("fill", "#ef4444")
+        .attr("font-size", 9).attr("font-family", "monospace")
+        .text("MARS");
+
+      // Orion constellation direction arrow (ecliptic lon ~88°, from Earth)
+      const orionRad = ORION_ECL_LON_DEG * Math.PI / 180;
+      const arrowDx = Math.cos(orionRad);
+      const arrowDy = -Math.sin(orionRad); // SVG Y inverted
+      const arrowPx = 62;
+      g.append("line")
+        .attr("x1", ex).attr("y1", ey)
+        .attr("x2", ex + arrowDx * arrowPx).attr("y2", ey + arrowDy * arrowPx)
+        .attr("stroke", "#a78bfa").attr("stroke-width", 1.5)
+        .attr("stroke-dasharray", "4 3")
+        .attr("marker-end", "url(#orionArrow)");
+      g.append("text")
+        .attr("x", ex + arrowDx * (arrowPx + 18))
+        .attr("y", ey + arrowDy * (arrowPx + 18) + 3)
+        .attr("text-anchor", "middle").attr("fill", "#a78bfa")
+        .attr("font-size", 8).attr("font-family", "monospace")
+        .text("✦ ORION");
+
+      // Badge
+      svg.append("text")
+        .attr("x", w / 2).attr("y", h - 26)
+        .attr("text-anchor", "middle").attr("fill", "#fbbf24")
+        .attr("font-size", 9).attr("font-family", "monospace")
+        .attr("letter-spacing", 2).attr("opacity", 0.7)
+        .text("HELIOCENTRIC VIEW · ECLIPTIC PLANE");
+
+      // Scale bar (1 AU)
+      const barPxS = AU_KM * ss;
+      const bxS = 14, byS = h - 14;
+      svg.append("line").attr("x1", bxS).attr("y1", byS).attr("x2", bxS + barPxS).attr("y2", byS)
+        .attr("stroke", "#475569").attr("stroke-width", 1.5);
+      svg.append("line").attr("x1", bxS).attr("y1", byS - 4).attr("x2", bxS).attr("y2", byS + 4)
+        .attr("stroke", "#475569").attr("stroke-width", 1.5);
+      svg.append("line").attr("x1", bxS + barPxS).attr("y1", byS - 4).attr("x2", bxS + barPxS).attr("y2", byS + 4)
+        .attr("stroke", "#475569").attr("stroke-width", 1.5);
+      svg.append("text").attr("x", bxS + barPxS / 2).attr("y", byS - 6)
+        .attr("text-anchor", "middle").attr("fill", "#475569")
+        .attr("font-size", 9).attr("font-family", "monospace")
+        .text("1 AU");
+
+      return; // Skip Earth-Moon rendering
     }
 
     // ── grid ─────────────────────────────────────────────────────────────
@@ -411,7 +561,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       .attr("font-size", 9).attr("font-family", "monospace")
       .text(fmtKm(barKm));
 
-  }, [current, trajectory, showSats, manualApproach]);
+  }, [current, trajectory, showSats, manualApproach, showSunView]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -512,12 +662,12 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
                           rounded-lg border border-slate-800">
             <span className="text-[10px] text-slate-500 font-mono tracking-widest mr-1">VIEW</span>
             {(["moon", "earth"] as const).map((mode) => {
-              const isActive = approaching === mode;
+              const isActive = !showSunView && approaching === mode;
               const isAuto   = autoApproach === mode && manualApproach === null;
               return (
                 <button
                   key={mode}
-                  onClick={() => toggleApproach(mode)}
+                  onClick={() => { setShowSunView(false); toggleApproach(mode); }}
                   className={`text-[10px] px-2 py-0.5 rounded font-mono transition border ${
                     isActive
                       ? "bg-orange-900/60 border-orange-600 text-orange-300"
@@ -528,6 +678,16 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
                 </button>
               );
             })}
+            <button
+              onClick={() => setShowSunView((v) => !v)}
+              className={`text-[10px] px-2 py-0.5 rounded font-mono transition border ${
+                showSunView
+                  ? "bg-yellow-900/60 border-yellow-500 text-yellow-300"
+                  : "bg-transparent border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+              }`}
+            >
+              SUN
+            </button>
           </div>
         </div>
 
