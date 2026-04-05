@@ -52,12 +52,11 @@ const AU_KM = 149_597_870.7;
 // Mean longitude at J2000 and daily motion (degrees) — low-precision Keplerian
 const ORBITAL_ELEMENTS = {
   mercury: { a: 0.38709893, L0: 252.25032, Lrate: 4.09233445 },
+  venus:   { a: 0.72333199, L0: 181.97973, Lrate: 1.60213034 },
   earth:   { a: 1.00000011, L0: 100.46457, Lrate: 0.98560028 },
   mars:    { a: 1.52366231, L0: 355.45332, Lrate: 0.52400048 },
 } as const;
 
-// Orion constellation center (Betelgeuse ~RA 88.8°, Dec +7.4°) → ecliptic longitude ≈ 88°
-const ORION_ECL_LON_DEG = 88;
 
 function fmtKm(km: number): string {
   return km >= 1_000 ? `${km / 1_000}k km` : `${km} km`;
@@ -185,10 +184,6 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
     sunGrad.append("stop").attr("offset", "60%").attr("stop-color", "#fbbf24");
     sunGrad.append("stop").attr("offset", "100%").attr("stop-color", "#d97706");
 
-    defs.append("marker").attr("id", "orionArrow")
-      .attr("markerWidth", 6).attr("markerHeight", 6)
-      .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
-      .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", "#a78bfa");
 
     defs.append("style").text(`
       @keyframes orion-pulse {
@@ -242,23 +237,25 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       // Planet heliocentric positions
       const ePos = planetPositionKm(ORBITAL_ELEMENTS.earth.a,   ORBITAL_ELEMENTS.earth.L0,   ORBITAL_ELEMENTS.earth.Lrate,   viewDate);
       const mPos = planetPositionKm(ORBITAL_ELEMENTS.mercury.a, ORBITAL_ELEMENTS.mercury.L0, ORBITAL_ELEMENTS.mercury.Lrate, viewDate);
+      const vPos = planetPositionKm(ORBITAL_ELEMENTS.venus.a,   ORBITAL_ELEMENTS.venus.L0,   ORBITAL_ELEMENTS.venus.Lrate,   viewDate);
       const rPos = planetPositionKm(ORBITAL_ELEMENTS.mars.a,    ORBITAL_ELEMENTS.mars.L0,    ORBITAL_ELEMENTS.mars.Lrate,    viewDate);
 
       // Orbit rings
-      const orbits: Array<{ key: keyof typeof ORBITAL_ELEMENTS; stroke: string; label: string }> = [
-        { key: "mercury", stroke: "#334155", label: "0.39 AU" },
-        { key: "earth",   stroke: "#1e3a5f", label: "1.00 AU" },
-        { key: "mars",    stroke: "#3b1515", label: "1.52 AU" },
+      const orbits: Array<{ key: keyof typeof ORBITAL_ELEMENTS; ring: string; fill: string; label: string }> = [
+        { key: "mercury", ring: "#334155", fill: "#475569", label: "0.39 AU" },
+        { key: "venus",   ring: "#3d3010", fill: "#6b5a20", label: "0.72 AU" },
+        { key: "earth",   ring: "#1e3a5f", fill: "#2e5a8a", label: "1.00 AU" },
+        { key: "mars",    ring: "#3b1515", fill: "#6b2a2a", label: "1.52 AU" },
       ];
-      orbits.forEach(({ key, stroke, label }) => {
+      orbits.forEach(({ key, ring, fill, label }) => {
         const r = ORBITAL_ELEMENTS[key].a * AU_KM * ss;
         g.append("circle")
           .attr("cx", scx).attr("cy", scy).attr("r", r)
-          .attr("fill", "none").attr("stroke", stroke)
+          .attr("fill", "none").attr("stroke", ring)
           .attr("stroke-width", 0.7).attr("stroke-dasharray", "3 7");
         g.append("text")
           .attr("x", scx + r + 3).attr("y", scy - 2)
-          .attr("fill", stroke === "#1e3a5f" ? "#1e4a7a" : "#3a4a5a")
+          .attr("fill", fill)
           .attr("font-size", 7).attr("font-family", "monospace")
           .text(label);
       });
@@ -280,6 +277,15 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
         .attr("font-size", 8).attr("font-family", "monospace")
         .text("MERCURY");
 
+      // Venus
+      const [vx, vy] = toSun(vPos.x, vPos.y);
+      g.append("circle").attr("cx", vx).attr("cy", vy).attr("r", 4)
+        .attr("fill", "#fde68a").attr("stroke", "#d4a520").attr("stroke-width", 0.8);
+      g.append("text").attr("x", vx).attr("y", vy - 7)
+        .attr("text-anchor", "middle").attr("fill", "#fde68a")
+        .attr("font-size", 8).attr("font-family", "monospace")
+        .text("VENUS");
+
       // Earth
       const [ex, ey] = toSun(ePos.x, ePos.y);
       g.append("circle").attr("cx", ex).attr("cy", ey).attr("r", 5)
@@ -293,7 +299,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
         g.append("text").attr("x", ex).attr("y", ey + 18)
           .attr("text-anchor", "middle").attr("fill", "#f97316")
           .attr("font-size", 7).attr("font-family", "monospace")
-          .text("▸ ORION");
+          .text("▸ ORION s/c");
       }
 
       // Mars
@@ -305,23 +311,6 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
         .attr("font-size", 9).attr("font-family", "monospace")
         .text("MARS");
 
-      // Orion constellation direction arrow (ecliptic lon ~88°, from Earth)
-      const orionRad = ORION_ECL_LON_DEG * Math.PI / 180;
-      const arrowDx = Math.cos(orionRad);
-      const arrowDy = -Math.sin(orionRad); // SVG Y inverted
-      const arrowPx = 62;
-      g.append("line")
-        .attr("x1", ex).attr("y1", ey)
-        .attr("x2", ex + arrowDx * arrowPx).attr("y2", ey + arrowDy * arrowPx)
-        .attr("stroke", "#a78bfa").attr("stroke-width", 1.5)
-        .attr("stroke-dasharray", "4 3")
-        .attr("marker-end", "url(#orionArrow)");
-      g.append("text")
-        .attr("x", ex + arrowDx * (arrowPx + 18))
-        .attr("y", ey + arrowDy * (arrowPx + 18) + 3)
-        .attr("text-anchor", "middle").attr("fill", "#a78bfa")
-        .attr("font-size", 8).attr("font-family", "monospace")
-        .text("✦ ORION");
 
       // Badge
       svg.append("text")
