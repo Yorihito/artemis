@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from pydantic import Field
 from app.services.cache_service import cache_service
 from app.services.visitor_service import visitor_service
-from app.models.system import SystemStatusResponse
+from app.services import nasa_oem_client
+from app.models.system import SystemStatusResponse, OEMInfo
 from app.config import settings
 
 router = APIRouter(prefix="/api/system", tags=["system"])
@@ -42,6 +43,11 @@ async def get_status():
         if cache_service.is_approaching
         else settings.POLL_INTERVAL_NORMAL_SECONDS
     )
+    oem_info = OEMInfo(
+        enabled=not settings.OEM_DISABLED,
+        url=nasa_oem_client.get_cached_oem_url(),
+        cache_age_minutes=nasa_oem_client.get_cached_oem_age_minutes(),
+    )
     return SystemStatusResponse(
         sources=sources,
         cache=cache_service.get_cache_info(),
@@ -49,4 +55,5 @@ async def get_status():
         approach_type=cache_service.approach_type,
         poll_interval_seconds=poll_interval,
         uptime_seconds=cache_service.get_uptime(),
+        oem=oem_info,
     )
