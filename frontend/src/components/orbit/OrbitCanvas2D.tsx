@@ -92,7 +92,7 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
   const svgRef        = useRef<SVGSVGElement>(null);
   const containerRef  = useRef<HTMLDivElement>(null);
   const prevModeRef   = useRef<string>("normal");
-  const [manualApproach, setManualApproach] = useState<ApproachMode>(null);
+  const [manualApproach, setManualApproach] = useState<ApproachMode | "none">(null);
   const [showSunView, setShowSunView] = useState(false);
 
   const [showSats, setShowSats] = useState<Record<SatId, boolean>>(() => {
@@ -125,7 +125,10 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       current?.is_approaching && current.approach_type
         ? (current.approach_type as ApproachMode)
         : null;
-    const approaching: ApproachMode = manualApproach ?? autoApproachDraw;
+    const approaching: ApproachMode =
+      manualApproach === null   ? autoApproachDraw :
+      manualApproach === "none" ? null :
+      manualApproach;
 
     const viewRadius = VIEW_RADIUS[approaching ?? "normal"];
     const viewMargin = approaching ? 20 : 40;
@@ -586,11 +589,15 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
       ? (current.approach_type as ApproachMode)
       : null;
 
-  // manualApproach overrides auto; null = follow auto
-  const approaching: ApproachMode = manualApproach ?? autoApproach;
+  // null = follow auto; "none" = force normal view; "moon"/"earth" = force that mode
+  const approaching: ApproachMode =
+    manualApproach === null   ? autoApproach :
+    manualApproach === "none" ? null :
+    manualApproach;
 
   const toggleApproach = (mode: NonNullable<ApproachMode>) => {
-    setManualApproach((prev) => (prev === mode ? null : mode));
+    // If currently showing this mode (via auto or manual), force back to normal overview
+    setManualApproach(approaching === mode ? "none" : mode);
   };
 
   return (
