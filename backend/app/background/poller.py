@@ -139,8 +139,11 @@ async def _prepopulate_history():
         if oem_vectors:
             oem_start = oem_vectors[0][0]
             oem_end = oem_vectors[-1][0]
+            now_utc = datetime.now(timezone.utc)
             new_points = []
             for ts, pos, _ in oem_vectors:
+                if ts > now_utc:
+                    continue  # Skip future predictions
                 if latest_stored is not None and ts <= latest_stored:
                     continue  # Already stored
                 pt = TrajectoryPoint(timestamp=ts, x=pos.x, y=pos.y, z=pos.z)
