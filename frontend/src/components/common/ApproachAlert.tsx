@@ -7,9 +7,9 @@ interface Props {
 }
 
 const OPTIONS = [
+  { label: "5m",  value: 300_000 },
+  { label: "1m",  value: 60_000 },
   { label: "30s", value: 30_000 },
-  { label: "10s", value: 10_000 },
-  { label: "5s",  value: 5_000 },
 ];
 
 export function ApproachAlert({ approachType, onSelectInterval, onDismiss }: Props) {
