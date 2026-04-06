@@ -145,6 +145,39 @@ export default function DashboardPage() {
         </div>
       </main>
 
+      {/* Static content for search engine indexing */}
+      <section className="border-t border-slate-900 mt-4 px-4 py-8 max-w-[1600px] mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-slate-600 text-xs font-mono leading-relaxed">
+          <div>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">About Artemis II</h2>
+            <p>
+              Artemis II is NASA&apos;s first crewed lunar mission since Apollo 17 in 1972. Launched on April 1,
+              2026, the Orion spacecraft — nicknamed &ldquo;Integrity&rdquo; — carries four astronauts on a
+              free-return lunar flyby trajectory, reaching a maximum distance of approximately 400,000 km
+              from Earth before returning for splashdown around April 12, 2026.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">Data Source</h2>
+            <p>
+              Position and velocity data are sourced from JPL Horizons, NASA&apos;s solar system ephemeris
+              service operated by the Jet Propulsion Laboratory. State vectors are fetched in the
+              J2000 Earth-centered inertial frame and updated every 30 seconds during cruise phase,
+              increasing to every minute during lunar approach and departure.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">How to Use</h2>
+            <p>
+              The orbit canvas displays the spacecraft trajectory relative to Earth and the Moon in the
+              ecliptic plane. Scroll to zoom, drag to pan, and double-click to reset the view.
+              Switch to MOON or EARTH view for close-approach detail. The SUN button activates a
+              heliocentric view showing Mercury, Venus, Earth, and Mars.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <footer className="border-t border-slate-900 font-mono">
         <VisitorCounter />
         <p className="text-center text-[10px] text-slate-800 pb-2">
