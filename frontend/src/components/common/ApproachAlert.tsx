@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/contexts/LocaleContext";
+import { t } from "@/lib/i18n";
 
 interface Props {
   approachType: "moon" | "earth";
@@ -13,7 +15,10 @@ const OPTIONS = [
 ];
 
 export function ApproachAlert({ approachType, onSelectInterval, onDismiss }: Props) {
-  const target = approachType === "moon" ? "Moon" : "Earth";
+  const locale = useLocale();
+  const target = approachType === "moon"
+    ? t("approach.moon", locale)
+    : t("approach.earth", locale);
   const emoji = approachType === "moon" ? "🌙" : "🌍";
 
   return (
@@ -21,20 +26,17 @@ export function ApproachAlert({ approachType, onSelectInterval, onDismiss }: Pro
       <span className="text-2xl">{emoji}</span>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-orange-300">
-          Approaching {target}!
+          {locale === "ja" ? `${target}に接近中！` : `Approaching ${target}!`}
         </div>
         <div className="text-sm text-orange-400">
-          Consider increasing the polling frequency
+          {t("approach.subtitle", locale)}
         </div>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {OPTIONS.map((opt) => (
           <button
             key={opt.value}
-            onClick={() => {
-              onSelectInterval(opt.value);
-              onDismiss();
-            }}
+            onClick={() => { onSelectInterval(opt.value); onDismiss(); }}
             className="text-xs bg-orange-800 hover:bg-orange-700 text-orange-100 px-3 py-1.5 rounded font-mono transition"
           >
             {opt.label}
@@ -44,7 +46,7 @@ export function ApproachAlert({ approachType, onSelectInterval, onDismiss }: Pro
           onClick={onDismiss}
           className="text-xs text-orange-500 hover:text-orange-300 px-2"
         >
-          Later
+          {t("approach.later", locale)}
         </button>
       </div>
     </div>

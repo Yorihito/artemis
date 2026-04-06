@@ -1,5 +1,7 @@
 "use client";
 import type { DSNStatus, DSNDish, DSNSignalInfo } from "@/types/dsn";
+import { useLocale } from "@/contexts/LocaleContext";
+import { t, type Locale } from "@/lib/i18n";
 
 interface Props {
   data: DSNStatus | undefined;
@@ -19,9 +21,7 @@ function fmtRange(km: number): string {
 
 function SignalBadge({ sig, dir }: { sig: DSNSignalInfo | null; dir: "↓" | "↑" }) {
   if (!sig || sig.signal_type === "none") {
-    return (
-      <span className="text-slate-700 text-[10px] font-mono">{dir} —</span>
-    );
+    return <span className="text-slate-700 text-[10px] font-mono">{dir} —</span>;
   }
   return (
     <span className={`text-[10px] font-mono flex items-center gap-1 ${sig.active ? "text-green-400" : "text-slate-500"}`}>
@@ -31,7 +31,7 @@ function SignalBadge({ sig, dir }: { sig: DSNSignalInfo | null; dir: "↓" | "�
   );
 }
 
-function DishCard({ dish, primary }: { dish: DSNDish; primary: boolean }) {
+function DishCard({ dish, primary, locale }: { dish: DSNDish; primary: boolean; locale: Locale }) {
   return (
     <div className={`rounded-lg border px-3 py-2.5 ${primary ? "border-cyan-800 bg-cyan-950/30" : "border-slate-800 bg-slate-900/30"}`}>
       <div className="flex items-center justify-between mb-2">
@@ -59,7 +59,7 @@ function DishCard({ dish, primary }: { dish: DSNDish; primary: boolean }) {
         <div>
           <div className="text-slate-600 text-[10px] uppercase tracking-wider">RTLT</div>
           <div className="text-cyan-300 font-mono">{dish.rtlt_sec.toFixed(3)} s</div>
-          <div className="text-slate-600 font-mono text-[10px]">one-way {(dish.rtlt_sec / 2).toFixed(3)} s</div>
+          <div className="text-slate-600 font-mono text-[10px]">{t("dsn.oneWay", locale)} {(dish.rtlt_sec / 2).toFixed(3)} s</div>
         </div>
         <div>
           <div className="text-slate-600 text-[10px] uppercase tracking-wider">Range</div>
@@ -93,13 +93,15 @@ function DishCard({ dish, primary }: { dish: DSNDish; primary: boolean }) {
 }
 
 export function DSNPanel({ data, isLoading }: Props) {
+  const locale = useLocale();
+
   if (isLoading && !data) {
     return (
       <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-          DSN Ground Contact
+          {t("dsn.title", locale)}
         </div>
-        <div className="text-slate-700 text-xs font-mono animate-pulse">FETCHING...</div>
+        <div className="text-slate-700 text-xs font-mono animate-pulse">{t("dsn.fetching", locale)}</div>
       </div>
     );
   }
@@ -108,10 +110,9 @@ export function DSNPanel({ data, isLoading }: Props) {
 
   return (
     <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 space-y-3">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          DSN Ground Contact
+          {t("dsn.title", locale)}
         </div>
         <div className="flex items-center gap-1.5">
           <span className={`inline-block w-2 h-2 rounded-full ${
@@ -120,38 +121,34 @@ export function DSNPanel({ data, isLoading }: Props) {
           <span className={`text-xs font-mono font-semibold tracking-widest ${
             tracking ? "text-green-400" : "text-red-500"
           }`}>
-            {tracking ? "TRACKING" : "NO CONTACT"}
+            {tracking ? t("dsn.tracking", locale) : t("dsn.noContact", locale)}
           </span>
         </div>
       </div>
 
-      {/* Primary dish */}
       {data?.primary_dish && (
-        <DishCard dish={data.primary_dish} primary />
+        <DishCard dish={data.primary_dish} primary locale={locale} />
       )}
 
-      {/* Additional dishes if more than one */}
       {(data?.dishes?.length ?? 0) > 1 && (
         <div className="space-y-1.5">
-          <div className="text-[10px] text-slate-600 uppercase tracking-wider">Also tracking</div>
+          <div className="text-[10px] text-slate-600 uppercase tracking-wider">{t("dsn.also", locale)}</div>
           {data!.dishes.slice(1).map((d) => (
-            <DishCard key={`${d.complex_id}-${d.dish_name}`} dish={d} primary={false} />
+            <DishCard key={`${d.complex_id}-${d.dish_name}`} dish={d} primary={false} locale={locale} />
           ))}
         </div>
       )}
 
-      {/* No contact state */}
       {!tracking && (
         <div className="text-xs text-slate-600 font-mono py-2 text-center">
-          Orion not currently in DSN contact window
+          {t("dsn.noWindow", locale)}
         </div>
       )}
 
-      {/* Complex status bar */}
       {data && data.complexes.length > 0 && (
         <div className="border-t border-slate-800 pt-3">
           <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-2">
-            DSN Complexes
+            {t("dsn.complexes", locale)}
           </div>
           <div className="flex gap-2">
             {data.complexes.map((c) => (
@@ -167,7 +164,7 @@ export function DSNPanel({ data, isLoading }: Props) {
                   </div>
                   {c.is_tracking && (
                     <div className="text-[8px] text-green-500 mt-0.5">
-                      {c.dish_count} dish{c.dish_count !== 1 ? "es" : ""}
+                      {c.dish_count} {t(c.dish_count !== 1 ? "dsn.dishes" : "dsn.dish", locale)}
                     </div>
                   )}
                 </div>
@@ -177,10 +174,9 @@ export function DSNPanel({ data, isLoading }: Props) {
         </div>
       )}
 
-      {/* Fetch time */}
       {data?.fetched_at && (
         <div className="text-[9px] text-slate-700 font-mono text-right">
-          DSN updated {new Date(data.fetched_at).toLocaleTimeString("en-US", { hour12: false })} UTC
+          {t("dsn.updated", locale)} {new Date(data.fetched_at).toLocaleTimeString("en-US", { hour12: false })} UTC
         </div>
       )}
     </div>

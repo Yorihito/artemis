@@ -19,6 +19,8 @@ import {
   DEFAULT_REFRESH_INTERVAL_MS,
 } from "@/constants/mission-config";
 import { apiPost } from "@/lib/api-client";
+import { useLocale } from "@/contexts/LocaleContext";
+import { t } from "@/lib/i18n";
 
 const OrbitCanvas2D = dynamic(
   () => import("@/components/orbit/OrbitCanvas2D").then((m) => m.OrbitCanvas2D),
@@ -38,6 +40,7 @@ type SidebarTab = "mission" | "news";
 export default function DashboardPage() {
   const [refreshInterval, setRefreshInterval] = useState(DEFAULT_REFRESH_INTERVAL_MS);
   const [showApproachAlert, setShowApproachAlert] = useState(false);
+  const locale = useLocale();
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("mission");
   const [trajectoryRange, setTrajectoryRange] = useState<"off" | "1h" | "2h" | "8h" | "mission">(() => {
     if (typeof window === "undefined") return "mission";
@@ -116,7 +119,7 @@ export default function DashboardPage() {
                     : "bg-slate-900/40 text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
                   }`}
               >
-                {tab}
+                {t(tab === "mission" ? "tab.mission" : "tab.news", locale)}
               </button>
             ))}
           </div>

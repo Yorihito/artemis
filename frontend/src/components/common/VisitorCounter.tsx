@@ -2,6 +2,8 @@
 import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { apiFetch, apiPost } from "@/lib/api-client";
+import { useLocale } from "@/contexts/LocaleContext";
+import { t } from "@/lib/i18n";
 
 interface VisitorStats {
   unique_visitors: number;
@@ -24,6 +26,7 @@ function getOrCreateSessionId(): string {
 }
 
 export function VisitorCounter() {
+  const locale = useLocale();
   const reported = useRef(false);
 
   const { data } = useSWR<VisitorStats>(
@@ -44,17 +47,13 @@ export function VisitorCounter() {
   return (
     <div className="flex items-center justify-center gap-6 py-2 text-[11px] font-mono text-slate-600">
       <span className="flex items-center gap-1.5">
-        <span className="text-slate-500">UNIQUE VISITORS</span>
-        <span className="text-slate-400 tabular-nums">
-          {data ? fmt(data.unique_visitors) : "—"}
-        </span>
+        <span className="text-slate-500">{t("visit.unique", locale)}</span>
+        <span className="text-slate-400 tabular-nums">{data ? fmt(data.unique_visitors) : "—"}</span>
       </span>
       <span className="text-slate-800">·</span>
       <span className="flex items-center gap-1.5">
-        <span className="text-slate-500">TOTAL VISITS</span>
-        <span className="text-slate-400 tabular-nums">
-          {data ? fmt(data.total_visits) : "—"}
-        </span>
+        <span className="text-slate-500">{t("visit.total", locale)}</span>
+        <span className="text-slate-400 tabular-nums">{data ? fmt(data.total_visits) : "—"}</span>
       </span>
     </div>
   );
