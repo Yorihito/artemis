@@ -294,14 +294,6 @@ export function OrbitCanvas2D({ current, trajectory, trajectoryRange, onTrajecto
         .attr("text-anchor", "middle").attr("fill", "#60a5fa")
         .attr("font-size", 9).attr("font-family", "monospace")
         .text("EARTH");
-      // Orion spacecraft is ~1–4M km from Earth — imperceptible at AU scale, shown as sub-label
-      if (current) {
-        g.append("text").attr("x", ex).attr("y", ey + 18)
-          .attr("text-anchor", "middle").attr("fill", "#f97316")
-          .attr("font-size", 7).attr("font-family", "monospace")
-          .text("▸ ORION s/c");
-      }
-
       // Mars
       const [rx, ry] = toSun(rPos.x, rPos.y);
       g.append("circle").attr("cx", rx).attr("cy", ry).attr("r", 4)
