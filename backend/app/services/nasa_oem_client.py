@@ -12,8 +12,10 @@ JPL Horizons (which reconstructs the trajectory from tracking data with some lag
 Reference: https://www.nasa.gov/missions/artemis/artemis-2/track-nasas-artemis-ii-mission-in-real-time/
 CCSDS OEM spec: https://ccsds.org/Pubs/502x0b3e1.pdf
 """
+import io
 import logging
 import re
+import zipfile
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Tuple
 
@@ -29,10 +31,15 @@ NASA_TRACKING_PAGE = (
     "track-nasas-artemis-ii-mission-in-real-time/"
 )
 
-# Known filename pattern: Artemis_II_OEM_YYYY_MM_DD_to_EI[_vN].asc
-# Hosted under NASA's wp-content/uploads directory
+# Known filename patterns (NASA publishes both .asc and .zip)
+# .asc:  Artemis_II_OEM_YYYY_MM_DD_to_EI[_vN].asc
+# .zip:  artemis-ii-oem-YYYY-MM-DD-to-ei[_vN].zip  (contains the .asc inside)
 _OEM_FILENAME_RE = re.compile(
     r'Artemis_II_OEM_\d{4}_\d{2}_\d{2}_to_EI(?:_v\d+)?\.asc',
+    re.IGNORECASE,
+)
+_OEM_ZIP_RE = re.compile(
+    r'artemis-ii-oem-\d{4}-\d{2}-\d{2}-to-ei(?:[-_]v\d+)?\.zip',
     re.IGNORECASE,
 )
 _NASA_WP_BASE = "https://www.nasa.gov/wp-content/uploads"
@@ -42,6 +49,11 @@ _cached_url: Optional[str] = None
 _cached_vectors: Optional[List[Tuple[datetime, Vector3D, Vector3D]]] = None
 _cache_fetched_at: Optional[datetime] = None
 _CACHE_TTL_SECONDS = 3600  # Re-fetch OEM file at most once per hour
+
+# Cache the discovered ZIP/ASC URL separately so we skip the tracking page on repeated polls
+_discovered_url: Optional[str] = None
+_discovered_at: Optional[datetime] = None
+_DISCOVERY_TTL_SECONDS = 21600  # Re-discover from page at most once per 6 hours
 
 
 class OEMRawData:
@@ -145,7 +157,21 @@ async def _discover_oem_url_from_page(client: httpx.AsyncClient) -> Optional[str
             return None
         html = resp.text
 
-        # Find all OEM filename occurrences in the HTML
+        # Search for ZIP hrefs first (NASA currently publishes .zip)
+        zip_href_re = re.compile(
+            r'href=["\']([^"\']*artemis-ii-oem-[^"\']*\.zip(?:\?[^"\']*)?)["\']',
+            re.IGNORECASE,
+        )
+        zip_match = zip_href_re.search(html)
+        if zip_match:
+            url = zip_match.group(1)
+            url = url.split("?")[0]  # strip query string
+            if not url.startswith("http"):
+                url = f"https://www.nasa.gov{url}"
+            logger.info(f"Discovered OEM ZIP URL from NASA page: {url}")
+            return url
+
+        # Fall back to .asc filename search
         matches = _OEM_FILENAME_RE.findall(html)
         if not matches:
             return None
@@ -175,7 +201,7 @@ async def _discover_oem_url_from_page(client: httpx.AsyncClient) -> Optional[str
 
 
 async def _fetch_oem_file(url: str, client: httpx.AsyncClient) -> Optional[str]:
-    """Download an OEM .asc file and return its text content."""
+    """Download an OEM file (.asc directly or .zip containing .asc) and return text content."""
     try:
         resp = await client.get(
             url,
@@ -183,9 +209,34 @@ async def _fetch_oem_file(url: str, client: httpx.AsyncClient) -> Optional[str]:
             follow_redirects=True,
             timeout=30.0,
         )
-        if resp.status_code == 200 and resp.text.strip():
-            return resp.text
-        logger.debug(f"OEM fetch {url} returned {resp.status_code}")
+        if resp.status_code == 429:
+            logger.warning(f"OEM fetch {url} rate-limited (429); will retry next cycle")
+            return None
+        if resp.status_code != 200:
+            logger.debug(f"OEM fetch {url} returned {resp.status_code}")
+            return None
+
+        content = resp.content
+
+        # Handle ZIP archives (magic bytes PK = 0x504B)
+        if content[:2] == b'PK' or url.lower().split("?")[0].endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(content)) as zf:
+                    asc_names = [n for n in zf.namelist() if n.lower().endswith(".asc")]
+                    if not asc_names:
+                        logger.debug(f"OEM: no .asc file found inside ZIP {url}")
+                        return None
+                    text = zf.read(asc_names[0]).decode("utf-8", errors="replace")
+                    logger.info(f"OEM: extracted {asc_names[0]} from ZIP")
+                    return text
+            except zipfile.BadZipFile as e:
+                logger.debug(f"OEM: bad ZIP from {url}: {e}")
+                return None
+
+        # Plain text .asc
+        text = content.decode("utf-8", errors="replace").strip()
+        return text if text else None
+
     except Exception as e:
         logger.debug(f"OEM fetch {url} failed: {e}")
     return None
@@ -205,31 +256,37 @@ async def fetch_latest_oem() -> Optional[List[Tuple[datetime, Vector3D, Vector3D
 
     now = datetime.now(timezone.utc)
 
-    # Return cache if fresh
+    # Return cache if fresh — also applies to failed attempts (negative cache):
+    # avoids hammering NASA every minute when fetch is rate-limited or unavailable.
     if (
-        _cached_vectors is not None
-        and _cache_fetched_at is not None
+        _cache_fetched_at is not None
         and (now - _cache_fetched_at).total_seconds() < _CACHE_TTL_SECONDS
     ):
-        logger.debug("OEM: returning cached vectors")
+        if _cached_vectors is not None:
+            logger.debug("OEM: returning cached vectors")
+        else:
+            logger.debug("OEM: previous fetch failed; skipping until cache expires")
         return _cached_vectors
 
     async with httpx.AsyncClient() as client:
-        # 1. Try to discover URL from the NASA page
-        discovered_url = await _discover_oem_url_from_page(client)
-        candidates = []
-        if discovered_url:
-            candidates.append(discovered_url)
-        # 2. Add pattern-based fallback candidates
-        candidates.extend(_candidate_urls(now))
+        # 1. Use cached discovery URL if fresh (avoids fetching the heavy NASA page each cycle).
+        global _discovered_url, _discovered_at
+        use_cached_discovery = (
+            _discovered_url is not None
+            and _discovered_at is not None
+            and (now - _discovered_at).total_seconds() < _DISCOVERY_TTL_SECONDS
+        )
+        if use_cached_discovery:
+            discovered_url = _discovered_url
+            logger.debug(f"OEM: using cached discovery URL: {discovered_url}")
+        else:
+            discovered_url = await _discover_oem_url_from_page(client)
+            if discovered_url:
+                _discovered_url = discovered_url
+                _discovered_at = now
 
-        # Deduplicate while preserving order
-        seen = set()
-        ordered = []
-        for u in candidates:
-            if u not in seen:
-                seen.add(u)
-                ordered.append(u)
+        # 2. Only try that URL; fall back to patterns only when discovery fails entirely.
+        ordered = [discovered_url] if discovered_url else _candidate_urls(now)
 
         for url in ordered:
             text = await _fetch_oem_file(url, client)
@@ -256,7 +313,8 @@ async def fetch_latest_oem() -> Optional[List[Tuple[datetime, Vector3D, Vector3D
             )
             return vectors
 
-    logger.warning("OEM: could not fetch any OEM file")
+    logger.warning("OEM: could not fetch any OEM file; caching failure to avoid rate-limiting")
+    _cache_fetched_at = now  # negative cache: don't retry for _CACHE_TTL_SECONDS
     return None
 
 
