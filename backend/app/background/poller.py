@@ -126,10 +126,19 @@ async def _prepopulate_history():
 
     # ── Real mode ──────────────────────────────────────────────────────────
 
-    # 1. Load persisted points into the deque
+    # Minimum spacing between points loaded into the in-memory deque.
+    # OEM files include 2-second-interval state vectors during manoeuvres; without
+    # subsampling, those dense segments fill the deque and push out the full-mission
+    # arc so that only a short recent window is visible in "Full" trajectory mode.
+    _DEQUE_MIN_INTERVAL_SEC = 240  # 4 min = OEM nominal cruise resolution
+
+    # 1. Load persisted points into the deque (subsampled to preserve full-mission span)
     stored = trajectory_store.load_all()
+    last_deque_ts = None
     for pt in stored:
-        cache_service.trajectory_points.append(pt)
+        if last_deque_ts is None or (pt.timestamp - last_deque_ts).total_seconds() >= _DEQUE_MIN_INTERVAL_SEC:
+            cache_service.trajectory_points.append(pt)
+            last_deque_ts = pt.timestamp
 
     latest_stored = trajectory_store.latest_timestamp()
 
@@ -147,8 +156,11 @@ async def _prepopulate_history():
                 if latest_stored is not None and ts <= latest_stored:
                     continue  # Already stored
                 pt = TrajectoryPoint(timestamp=ts, x=pos.x, y=pos.y, z=pos.z)
-                cache_service.trajectory_points.append(pt)
-                new_points.append(pt)
+                new_points.append(pt)  # persist all new past points for future restarts
+                # Only load into deque if interval is sufficient
+                if last_deque_ts is None or (ts - last_deque_ts).total_seconds() >= _DEQUE_MIN_INTERVAL_SEC:
+                    cache_service.trajectory_points.append(pt)
+                    last_deque_ts = ts
             if new_points:
                 trajectory_store.save_batch(new_points)
             logger.info(
