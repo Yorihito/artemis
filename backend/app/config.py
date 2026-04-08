@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     HORIZONS_EPHEMERIS_START: str = "2026-04-02T02:00:00Z"
 
     # Cache
-    TRAJECTORY_MAX_POINTS: int = 2880  # 24h at 30-second resolution
+    TRAJECTORY_MAX_POINTS: int = 6000  # full mission at 4-min OEM resolution (~14 days)
 
     class Config:
         env_file = ".env"
