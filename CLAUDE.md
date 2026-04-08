@@ -76,7 +76,7 @@ No automated tests exist in this codebase.
 ### Coordinate Frames
 JPL Horizons returns vectors in ICRF/J2000 geocentric. NASA OEM uses EME2000 geocentric. These frames differ by ~22° angular offset for the Artemis II trajectory — **do not mix** trajectory points from both sources in storage. This is why OEM is currently disabled.
 
-### Azure Resources (subscription: Musukoyo / yorihitotada@hotmail.com)
+### Azure Resources (subscription: Musukoyo)
 - Resource group: `artemis-rg` (japaneast)
 - Container App: `artemis-api` | Registry: `artemis2tracker`
 - Static Web App: `artemis2-frontend` | Storage: `artemis2storage`
