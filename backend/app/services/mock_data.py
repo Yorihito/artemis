@@ -57,6 +57,18 @@ def generate_mock_state(at: datetime | None = None) -> tuple[datetime, Vector3D,
     met_seconds = (now - LAUNCH_EPOCH).total_seconds()
     met_hours = met_seconds / 3600.0
 
+    # Post-splashdown: Orion at rest on Earth's surface (Pacific Ocean)
+    if met_hours >= TRAJECTORY_WAYPOINTS[-1][0]:
+        last_angle_rad = math.radians(TRAJECTORY_WAYPOINTS[-1][2])
+        r = 6371.0  # Earth radius km (surface)
+        position = Vector3D(
+            x=r * math.cos(last_angle_rad),
+            y=r * math.sin(last_angle_rad),
+            z=0.0,
+        )
+        velocity = Vector3D(x=0.0, y=0.0, z=0.0)
+        return now, position, velocity
+
     earth_dist_km, angle_deg = _interpolate(met_hours)
     angle_rad = math.radians(angle_deg)
 
