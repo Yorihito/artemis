@@ -22,7 +22,7 @@ from app.services import nasa_oem_client
 from app.services import telemetry_normalizer
 from app.services.mock_data import generate_mock_state
 from app.services.trajectory_store import trajectory_store
-from app.models.mission import TrajectoryPoint
+from app.models.mission import TrajectoryPoint, Vector3D
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +52,29 @@ async def _fetch_and_update() -> bool:
             if source is None:
                 raw = await horizons_client.fetch_current_state()
                 if raw is None:
-                    logger.warning("Horizons returned no data")
-                    await cache_service.record_error("Horizons", "No data returned")
-                    return False
-                now = raw.timestamp
-                position = raw.position
-                velocity = raw.velocity
-                source = "Horizons"
+                    # If past splashdown epoch, Horizons will have no future ephemeris —
+                    # inject a Mission Complete state instead of recording an error.
+                    splashdown_dt = parse_dt(settings.MISSION_SPLASHDOWN_EPOCH)
+                    now_utc = datetime.now(timezone.utc)
+                    if now_utc > splashdown_dt:
+                        logger.info(
+                            "Past splashdown epoch and Horizons returned no data — "
+                            "marking mission as complete"
+                        )
+                        now = now_utc
+                        # Orion at rest on Earth's surface (Pacific Ocean approximate)
+                        position = Vector3D(x=6371.0, y=0.0, z=0.0)
+                        velocity = Vector3D(x=0.0, y=0.0, z=0.0)
+                        source = "Horizons"
+                    else:
+                        logger.warning("Horizons returned no data")
+                        await cache_service.record_error("Horizons", "No data returned")
+                        return False
+                else:
+                    now = raw.timestamp
+                    position = raw.position
+                    velocity = raw.velocity
+                    source = "Horizons"
 
         moon_position = None
         if not settings.USE_MOCK:

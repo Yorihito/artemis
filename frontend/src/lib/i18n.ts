@@ -72,12 +72,16 @@ export function t(key: TranslationKey, locale: Locale): string {
 
 /** Translate phase labels returned by the API */
 const PHASE_JA: Record<string, string> = {
-  "Translunar Coast": "月遷移飛行",
-  "Lunar Flyby":      "月フライバイ",
-  "Return Coast":     "帰還飛行",
-  "Reentry":          "再突入",
-  "Ascent":           "上昇",
-  "Complete":         "完了",
+  "Pre-launch":        "打ち上げ前",
+  "Ascent":            "上昇",
+  "Earth Parking Orbit": "地球周回軌道",
+  "Translunar Injection": "月遷移噴射",
+  "Translunar Coast":  "月遷移飛行",
+  "Lunar Flyby":       "月フライバイ",
+  "Return Coast":      "帰還飛行",
+  "Re-entry":          "再突入",
+  "Splashdown":        "着水",
+  "Mission Complete":  "ミッション完了",
 };
 export function translatePhase(label: string, locale: Locale): string {
   return locale === "ja" ? (PHASE_JA[label] ?? label) : label;

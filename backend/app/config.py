@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     # Mission definition
     MISSION_LAUNCH_EPOCH: str = "2026-04-01T22:35:12Z"
+    # Approximate splashdown time (MET ~212h after launch, Pacific Ocean)
+    MISSION_SPLASHDOWN_EPOCH: str = "2026-04-10T17:00:00Z"
     # Horizons ephemeris data starts ~2h after launch
     HORIZONS_EPHEMERIS_START: str = "2026-04-02T02:00:00Z"
 
