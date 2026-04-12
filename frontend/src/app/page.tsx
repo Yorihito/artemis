@@ -189,34 +189,76 @@ export default function DashboardPage() {
 
       {/* Static content for search engine indexing */}
       <section className="border-t border-slate-900 mt-4 px-4 py-8 max-w-[1600px] mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-slate-600 text-xs font-mono leading-relaxed">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-slate-600 text-xs font-mono leading-relaxed">
+
           <div>
-            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">About Artemis II</h2>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">Mission Complete — Artemis II</h2>
             <p>
-              Artemis II is NASA&apos;s first crewed lunar mission since Apollo 17 in 1972. Launched on April 1,
-              2026, the Orion spacecraft — nicknamed &ldquo;Integrity&rdquo; — carries four astronauts on a
-              free-return lunar flyby trajectory, reaching a maximum distance of approximately 400,000 km
-              from Earth before returning for splashdown around April 10, 2026.
+              NASA&apos;s Artemis II mission successfully completed on April 10, 2026, with the Orion spacecraft
+              splashing down in the Pacific Ocean after a 212-hour journey. Orion — callsign
+              &ldquo;Integrity&rdquo; — flew a free-return lunar trajectory, reaching a maximum distance of
+              approximately 400,000 km from Earth before returning. It was the first time humans had
+              traveled to the Moon since Apollo 17 in December 1972.
             </p>
           </div>
+
           <div>
-            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">Data Source</h2>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">Artemis II Crew</h2>
             <p>
+              Commander <strong className="text-slate-500">Reid Wiseman</strong> (NASA),
+              Pilot <strong className="text-slate-500">Victor Glover</strong> (NASA),
+              Mission Specialist <strong className="text-slate-500">Christina Koch</strong> (NASA),
+              and Mission Specialist <strong className="text-slate-500">Jeremy Hansen</strong> (CSA /
+              Canadian Space Agency). Jeremy Hansen became the first Canadian to travel beyond low Earth orbit.
+              Christina Koch became the first woman to travel to the Moon.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">Mission Highlights</h2>
+            <p>
+              Launch: April 1, 2026 at 22:35 UTC from Kennedy Space Center aboard SLS Block 1.
+              Lunar closest approach: approximately 9,200 km from the lunar surface.
+              Maximum Earth distance: ~400,000 km.
+              Mission duration: approximately 212 hours (about 9 days).
+              Splashdown: April 10, 2026, Pacific Ocean.
+              The mission served as a dress rehearsal for Artemis III, the first crewed lunar landing.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">Trajectory Archive</h2>
+            <p>
+              This site archives the complete Artemis II flight trajectory from launch through splashdown.
               Position and velocity data are sourced from JPL Horizons, NASA&apos;s solar system ephemeris
-              service operated by the Jet Propulsion Laboratory. State vectors are fetched in the
-              J2000 Earth-centered inertial frame and updated every 30 seconds during cruise phase,
-              increasing to every minute during lunar approach and departure.
+              service. State vectors are recorded in the J2000 Earth-centered inertial frame.
+              The ARTEMIS II tab displays the full orbit canvas with zoom, pan, Earth/Moon/Sun views,
+              and historical telemetry for the entire mission.
             </p>
           </div>
+
+          <div>
+            <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">About Artemis III</h2>
+            <p>
+              Artemis III will be the first crewed lunar landing since Apollo 17. Astronauts will land
+              near the lunar south pole, a region of scientific interest for its permanently shadowed
+              craters that may contain water ice. A launch date has not yet been announced.
+              When the mission schedule is confirmed, this site will begin tracking Artemis III in
+              real time. Check the NEWS tab for the latest updates.
+            </p>
+          </div>
+
           <div>
             <h2 className="text-slate-500 text-[11px] tracking-widest uppercase mb-3">How to Use</h2>
             <p>
-              The orbit canvas displays the spacecraft trajectory relative to Earth and the Moon in the
-              ecliptic plane. Scroll to zoom, drag to pan, and double-click to reset the view.
-              Switch to MOON or EARTH view for close-approach detail. The SUN button activates a
-              heliocentric view showing Mercury, Venus, Earth, and Mars.
+              Open the ARTEMIS II tab to explore the archived trajectory. The orbit canvas shows
+              the spacecraft path relative to Earth and the Moon in the ecliptic plane.
+              Scroll to zoom, drag to pan, double-click to reset. Switch to MOON or EARTH view for
+              close-approach detail, or SUN for the heliocentric solar system view showing Mercury,
+              Venus, Earth, and Mars. The NEWS tab aggregates the latest Artemis mission coverage.
             </p>
           </div>
+
         </div>
       </section>
 
