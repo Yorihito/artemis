@@ -73,6 +73,9 @@ def detect_approach(
     distance_from_earth_km: float,
 ) -> tuple[bool, str | None]:
     """Returns (is_approaching, approach_type)"""
+    # Post-splashdown: Orion is on the surface — not "approaching"
+    if distance_from_earth_km <= 6380:
+        return False, None
     if distance_from_moon_km < settings.MOON_APPROACH_THRESHOLD_KM:
         return True, "moon"
     if distance_from_earth_km < settings.EARTH_APPROACH_THRESHOLD_KM:

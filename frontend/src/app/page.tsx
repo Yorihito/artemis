@@ -35,13 +35,13 @@ const OrbitCanvas2D = dynamic(
   }
 );
 
-type SidebarTab = "mission" | "news";
+type MainView = "news" | "artemis-ii" | "artemis-iii";
 
 export default function DashboardPage() {
   const [refreshInterval, setRefreshInterval] = useState(DEFAULT_REFRESH_INTERVAL_MS);
   const [showApproachAlert, setShowApproachAlert] = useState(false);
   const locale = useLocale();
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("mission");
+  const [mainView, setMainView] = useState<MainView>("news");
   const [trajectoryRange, setTrajectoryRange] = useState<"off" | "1h" | "2h" | "8h" | "mission">(() => {
     if (typeof window === "undefined") return "mission";
     const s = localStorage.getItem("artemis_traj_range");
@@ -78,9 +78,41 @@ export default function DashboardPage() {
     } catch { /* ignore */ }
   };
 
+  const isComplete = data?.phase_label === "Mission Complete";
+
   return (
     <div className="min-h-screen bg-[#030712] flex flex-col text-slate-200">
       <MissionHeader data={data} isError={isError} />
+
+      {/* Top navigation */}
+      <nav className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-10 px-4">
+        <div className="mx-auto max-w-[1600px] flex">
+          {(
+            [
+              { id: "news" as MainView,        label: t("nav.news", locale),  badge: null },
+              { id: "artemis-ii" as MainView,  label: "ARTEMIS II",           badge: isComplete ? t("nav.complete", locale) : null },
+              { id: "artemis-iii" as MainView, label: "ARTEMIS III",          badge: t("nav.upcoming", locale) },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setMainView(item.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-[11px] font-mono tracking-widest transition-colors border-b-2
+                ${mainView === item.id
+                  ? "text-white border-white"
+                  : "text-slate-500 hover:text-slate-300 border-transparent"
+                }`}
+            >
+              {item.label}
+              {item.badge && (
+                <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 font-mono">
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {isError && (
         <ErrorBanner
@@ -88,7 +120,7 @@ export default function DashboardPage() {
           onRetry={async () => { await refresh(); }}
         />
       )}
-      {showApproachAlert && data?.is_approaching && data.approach_type && (
+      {showApproachAlert && data?.is_approaching && data.approach_type && mainView === "artemis-ii" && (
         <ApproachAlert
           approachType={data.approach_type}
           onSelectInterval={handleSetInterval}
@@ -96,57 +128,64 @@ export default function DashboardPage() {
         />
       )}
 
-      <main className="flex-1 mx-auto w-full max-w-[1600px] px-3 py-3
-                       grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 items-start">
+      {/* NEWS view */}
+      {mainView === "news" && (
+        <main className="flex-1 mx-auto w-full max-w-[860px] px-3 py-4">
+          <NewsPanel data={newsData} isLoading={newsLoading} />
+        </main>
+      )}
 
-        <OrbitCanvas2D
-          current={data}
-          trajectory={trajectoryRange === "off" ? [] : (trajectoryData?.points ?? [])}
-          trajectoryRange={trajectoryRange}
-          onTrajectoryRangeChange={setTrajectoryRange}
-        />
-
-        <div className="flex flex-col gap-3">
-          {/* Tab bar */}
-          <div className="flex rounded-lg border border-slate-800 overflow-hidden text-[11px] font-mono tracking-widest">
-            {(["mission", "news"] as SidebarTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSidebarTab(tab)}
-                className={`flex-1 py-2 uppercase transition-colors
-                  ${sidebarTab === tab
-                    ? "bg-slate-800 text-slate-100"
-                    : "bg-slate-900/40 text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
-                  }`}
-              >
-                {t(tab === "mission" ? "tab.mission" : "tab.news", locale)}
-              </button>
-            ))}
+      {/* ARTEMIS II archive view */}
+      {mainView === "artemis-ii" && (
+        <main className="flex-1 mx-auto w-full max-w-[1600px] px-3 py-3
+                         grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3 items-start">
+          <OrbitCanvas2D
+            current={data}
+            trajectory={trajectoryRange === "off" ? [] : (trajectoryData?.points ?? [])}
+            trajectoryRange={trajectoryRange}
+            onTrajectoryRangeChange={setTrajectoryRange}
+          />
+          <div className="flex flex-col gap-3">
+            <TelemetryGrid data={data} />
+            <DSNPanel data={dsnData} isLoading={dsnLoading} />
+            {eventsData && <TimelinePanel events={eventsData.events} />}
+            <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
+              <RefreshIntervalSelector
+                current={refreshInterval}
+                isApproaching={data?.is_approaching ?? false}
+                onChange={handleSetInterval}
+                onManualRefresh={handleManualRefresh}
+              />
+            </div>
           </div>
+        </main>
+      )}
 
-          {/* Mission tab */}
-          {sidebarTab === "mission" && (
-            <>
-              <TelemetryGrid data={data} />
-              <DSNPanel data={dsnData} isLoading={dsnLoading} />
-              {eventsData && <TimelinePanel events={eventsData.events} />}
-              <div className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
-                <RefreshIntervalSelector
-                  current={refreshInterval}
-                  isApproaching={data?.is_approaching ?? false}
-                  onChange={handleSetInterval}
-                  onManualRefresh={handleManualRefresh}
-                />
-              </div>
-            </>
-          )}
-
-          {/* News tab */}
-          {sidebarTab === "news" && (
-            <NewsPanel data={newsData} isLoading={newsLoading} />
-          )}
-        </div>
-      </main>
+      {/* ARTEMIS III placeholder */}
+      {mainView === "artemis-iii" && (
+        <main className="flex-1 flex flex-col items-center justify-center py-24 px-4">
+          <div className="text-center max-w-lg">
+            <div className="text-5xl mb-6">🌕</div>
+            <h2 className="text-xl font-bold text-white mb-3 font-mono tracking-widest">ARTEMIS III</h2>
+            <p className="text-slate-400 text-sm mb-6">
+              {locale === "ja"
+                ? "アポロ17号以来初の有人月面着陸ミッション"
+                : "First crewed lunar landing since Apollo 17"}
+            </p>
+            <p className="text-slate-600 text-xs font-mono leading-relaxed">
+              {locale === "ja"
+                ? "打ち上げ日は未定です。ミッションスケジュールが確定次第、トラッキングを開始します。"
+                : "Launch date not yet announced. Tracking will begin once the mission schedule is confirmed."}
+            </p>
+            <button
+              onClick={() => setMainView("news")}
+              className="mt-8 text-xs font-mono text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              → {locale === "ja" ? "最新ニュースを見る" : "See latest news"}
+            </button>
+          </div>
+        </main>
+      )}
 
       {/* Static content for search engine indexing */}
       <section className="border-t border-slate-900 mt-4 px-4 py-8 max-w-[1600px] mx-auto w-full">
@@ -157,7 +196,7 @@ export default function DashboardPage() {
               Artemis II is NASA&apos;s first crewed lunar mission since Apollo 17 in 1972. Launched on April 1,
               2026, the Orion spacecraft — nicknamed &ldquo;Integrity&rdquo; — carries four astronauts on a
               free-return lunar flyby trajectory, reaching a maximum distance of approximately 400,000 km
-              from Earth before returning for splashdown around April 12, 2026.
+              from Earth before returning for splashdown around April 10, 2026.
             </p>
           </div>
           <div>

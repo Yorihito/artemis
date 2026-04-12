@@ -55,9 +55,10 @@ export const translations = {
   "news.empty":   { en: "No recent articles found.", ja: "最近の記事はありません" },
   "news.updated": { en: "updated",                  ja: "更新" },
 
-  // Page tabs
-  "tab.mission": { en: "MISSION", ja: "ミッション" },
-  "tab.news":    { en: "NEWS",    ja: "ニュース" },
+  // Top navigation
+  "nav.news":     { en: "NEWS",     ja: "ニュース" },
+  "nav.complete": { en: "COMPLETE", ja: "完了" },
+  "nav.upcoming": { en: "UPCOMING", ja: "準備中" },
 
   // Visitor counter
   "visit.unique": { en: "UNIQUE VISITORS", ja: "ユニーク訪問者" },

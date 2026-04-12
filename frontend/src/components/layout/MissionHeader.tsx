@@ -34,7 +34,7 @@ export function MissionHeader({ data, isError }: Props) {
       <div className="mx-auto max-w-7xl flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🚀</span>
-          <span className="font-bold text-white tracking-wide text-lg">Artemis II</span>
+          <span className="font-bold text-white tracking-wide text-lg">Artemis Mission Tracker</span>
         </div>
 
         {data && (
